@@ -1,3 +1,4 @@
+from email.policy import default
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -9,10 +10,10 @@ from nltk.tokenize import word_tokenize
 
 class ConllParser(Parser):
     
-    ANNOTATION = r"^(?P<token_text>[^\s]+)\s(?P<bio_tag>[BIO])-(?P<prop_type>\w+)-(?P<relation_type>\w+)-(?P<relation_distance>-?\d+)\s*$"
+    ANNOTATION = r"^(?P<token_text>[^\s]+)\s(?P<bio_tag>[BIO])(-(?P<prop_type>\w+))?(-(?P<relation_type>\w+))?(-(?P<relation_distance>-?\d+))?\s*$"
     
-    def __init__(self) -> None:
-        super().__init__((".conll",))
+    def __init__(self, *additional_supported_formats) -> None:
+        super().__init__((".conll", *additional_supported_formats))
         self.annotation_regex = re.compile(self.ANNOTATION)
     
     def parse(self, content:str, file: Optional[Path] = None) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -66,13 +67,22 @@ class ConllParser(Parser):
             """
             current = start_index
             
+            def extract_language_tag(word):
+                """
+                Check if the word is annotated with a language tag i.e. [_es, _en, _de]
+                and return the unannotated word.
+                """
+                if len(word) > 3 and word[-3] == "_":
+                    return word[:-3]
+                return word
+
             if propositions[current]["bio_tag"] == "O":
-                proposition_text = propositions[current]["token_text"]
+                proposition_text = extract_language_tag(propositions[current]["token_text"])
                 current += 1
 
                 # Join all tokens
                 while current < len(propositions) and propositions[current]["bio_tag"] == "O":
-                    proposition_text += " " + proposition_text[current]["token_text"]
+                    proposition_text += " " + extract_language_tag(propositions[current]["token_text"])
                     current += 1
             else:
                 if propositions[current]["bio_tag"] != "B":
@@ -82,15 +92,15 @@ class ConllParser(Parser):
                         log.warning(f"Proposition '{proposition}' doesn't start with a B")
                 
                 # Current should be B
-                proposition_text = propositions[current]["token_text"]
+                proposition_text = extract_language_tag(propositions[current]["token_text"])
                 current += 1
                 
                 # Join all tokens
                 while current < len(propositions) and propositions[current]["bio_tag"] == "I":
-                    proposition_text += " " + propositions[current]["token_text"]
+                    proposition_text += " " + extract_language_tag(propositions[current]["token_text"])
                     current += 1
                 
-                return proposition_text, current
+            return proposition_text, current
         
         argumentative_units = pd.DataFrame(columns=["prop_id", "prop_type", "prop_init", "prop_end", "prop_text"])
         non_argumentative_units = pd.DataFrame(columns=["prop_init", "prop_end", "prop_text"])
@@ -116,20 +126,20 @@ class ConllParser(Parser):
                     "prop_end": accumulative_offset + len(proposition), 
                     "prop_text": proposition,
                 }, ignore_index=True)
-                
-                relations = relations.append({
-                    "relation_id": len(relations), 
-                    "relation_type": prop_info["relation_type"],
-                    "prop_id_source": prop_id, 
-                    "prop_id_target": prop_id + int(prop_info["relation_distance"]),
-                }, ignore_index=True)
+                if None not in [prop_info["relation_type"], prop_info["relation_distance"]]:
+                    relations = relations.append({
+                        "relation_id": len(relations), 
+                        "relation_type": prop_info["relation_type"],
+                        "prop_id_source": prop_id, 
+                        "prop_id_target": prop_id + int(prop_info["relation_distance"]),
+                    }, ignore_index=True)
             
-            accumulative_offset += len(proposition)
+            accumulative_offset += len(proposition) + 1 # Extra separator when rebuilding text
         
         return argumentative_units, relations, non_argumentative_units
         
 
-    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english") -> Dict[str, str]:
+    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english") -> Dict[str, Tuple[str,str]]:
         """
         Creates a CONLL annotated corpus representing the received DataFrames. 
         
@@ -137,10 +147,11 @@ class ConllParser(Parser):
         the keys aren't important, so a mock key can be passed.
         language: Language for tokenization process
         
-        returns: CONLL annotated string
+        returns: CONLL annotated string, Raw text
         """
         
         results = {}
+        default_gap = " "
                 
         bio_format = "{tok}\t{bio_tag}-{prop_type}-{relation_type}-{relation_distance}\n"
         
@@ -150,7 +161,12 @@ class ConllParser(Parser):
             all_units = argumentative_units.append(non_argumentative_units, sort=True)
             all_units.sort_values(by="prop_init", inplace=True)
             all_units = all_units.reindex(columns=["prop_id", "prop_type", "prop_init", "prop_end", "prop_text"])
+            max_length = all_units["prop_end"].max()
+            
+            text = default_gap*max_length
+            
             for index, (prop_id, prop_type, prop_init, prop_end, prop_text) in all_units.iterrows():
+                text = text[:prop_init] + prop_text + text[prop_end:]
                 prop_tokens = word_tokenize(prop_text, language=language)
                 if prop_type is None:
                     # Out of proposition
@@ -175,7 +191,7 @@ class ConllParser(Parser):
                             relation_distance = relation["prop_id_target"].values[0] - relation["prop_id_source"].values[0]
                         elif len(relation) == 0:
                             relation_type = "none"
-                            relation_distance = - relation["prop_id_source"].values[0]
+                            relation_distance = "none"
                         else:
                             relation_type = "none"
                             relation_distance = - relation["prop_id_source"].values[0]
@@ -189,7 +205,7 @@ class ConllParser(Parser):
                             })
                         result += to_write
             
-            results[file_path_str] = result
+            results[file_path_str] = result, text
         
         return results
 

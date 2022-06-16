@@ -1,6 +1,7 @@
+from cmath import nan
 from pathlib import Path
 import re
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 from .parser import Parser
 import pandas as pd
 import logging as log
@@ -45,7 +46,7 @@ class BretParser(Parser):
           - `prop_end` When the proposition ends in the original text
           - `prop_text` Proposition text
           
-        return: (argumentative_units, relationsm non_argumentative_units)
+        return: (argumentative_units, relations, non_argumentative_units)
         """
         content_lines = content.splitlines()
         original_text_file = (file / ".." / ((".".join(file.name.split('.')[:-1]) if "." in file.name else file.name) + ".txt")).resolve()
@@ -100,6 +101,60 @@ class BretParser(Parser):
         
         return argumentative_units, relations, non_argumentative_units
 
+    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english") -> Dict[str, Tuple[str,str]]:
+        """
+        Creates a Bret annotated corpus representing the received DataFrames. 
+        
+        dataframes: The result from calling a parse function in any Parser class
+        the keys aren't important, so a mock key can be passed.
+        language: Language for tokenization process
+        
+        returns: Bret annotated string, Raw text
+        """
+        
+        results = {}
+        default_gap = " "
+
+        argumentative_format = "T{prop_id}\t{prop_type} {prop_init} {prop_end}\t{prop_text}\n"
+        relation_format = "R{relation_id}\t{relation_type} Arg:T{prop_id_source} Arg:T{prop_id_target}\n"
+        
+        for file_path_str, (argumentative_units, relations, non_argumentative_units) in dataframes.items():
+
+            result = ""
+            all_units = argumentative_units.append(non_argumentative_units, sort=True)
+            all_units.sort_values(by="prop_init", inplace=True)
+            all_units = all_units.reindex(columns=["prop_id", "prop_type", "prop_init", "prop_end", "prop_text"])
+            max_length = all_units["prop_end"].max()
+            
+            text = default_gap*max_length
+            
+            for index, (prop_id, prop_type, prop_init, prop_end, prop_text) in all_units.iterrows():
+                text = text[:prop_init] + prop_text + text[prop_end:]
+                if pd.notna(prop_id) and pd.notna(prop_type):
+                    to_write = argumentative_format.format_map({
+                        "prop_id": prop_id,
+                        "prop_type": prop_type,
+                        "prop_init": prop_init,
+                        "prop_end": prop_end,
+                        "prop_text": prop_text
+                    })
+                    result += to_write
+            
+            relations = relations.reindex(columns=["relation_id", "relation_type", "prop_id_source", "prop_id_target"])
+            
+            for index, (relation_id, relation_type, prop_id_source, prop_id_target) in relations.iterrows():
+                to_write = relation_format.format_map({
+                    "relation_id": relation_id,
+                    "relation_type": relation_type,
+                    "prop_id_source": prop_id_source,
+                    "prop_id_target": prop_id_target,
+                })
+                result += to_write
+            
+            results[file_path_str] = result, text
+        
+        return results
+    
 if __name__ == "__main__":
     base = Path(__file__) / ".." / ".." / "corpus" / "ArgumentAnnotatedEssays-2.0" / "brat-project-final" / "brat-project-final"
     base = base.resolve()

@@ -8,13 +8,20 @@ from corpus_parser.bret_parser import BretParser
 
 
 def test_parse():
-    base = Path(__file__) / ".." / ".." / ".." / "corpus" / "ArgumentAnnotatedEssays-2.0" / "brat-project-final" / "brat-project-final"
+    base = Path(__file__) / ".." / "test_data" / "test_bret"
     base = base.resolve()
 
     parser = BretParser()
     result = parser.parse_dir(base)
     result1, result2, result3 = next(x for x in result.values())
-    print(result1.describe())
-    print(result2.describe())
-    print(result3.describe())
 
+
+def test_from_dataframe():
+    base = Path(__file__) / ".." / "test_data" / "test_bret"
+    base = base.resolve()
+
+    parser = BretParser()
+    result = parser.parse_dir(base)
+    result2 = parser.from_dataframes(result)
+    key = next(iter(result2.keys()))
+    result3 = parser.parse(result2[key][0], file=Path(key))

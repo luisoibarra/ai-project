@@ -34,8 +34,10 @@ class Parser:
         max_worker = 20
         
         files = [file for file in corpus_path.iterdir()]
+        batch = len(files)//max_worker
+        if batch == 0: batch = 1 # At least one must be the batch size
+        
         def read(slice):
-            batch = len(files)//max_worker
             for file in files[batch*slice:batch*(slice+1)]:
                 if self._should_read_file(file):
                     result = self.parse_file(file)
@@ -106,6 +108,46 @@ class Parser:
           - `prop_end` When the proposition ends in the original text
           - `prop_text` Proposition text
           
-        return: (argumentative_units, relationsm non_argumentative_units)
+        return: (argumentative_units, relations, non_argumentative_units)
         """
         raise NotImplementedError()
+
+    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english") -> Dict[str, Tuple[str,str]]:
+        """
+        Creates file with annotated corpus representing the received DataFrames. 
+        
+        dataframes: The result from calling a parse function in any Parser class
+        the keys aren't important, so a mock key can be passed.
+        language: Language for tokenization process
+        
+        returns: Annotated string, Raw entire text
+        """
+        raise NotImplementedError()
+        
+    def export_from_dataframes(self, dest_address: Path, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]]):
+        """
+        Saves the corpus to into dest_address, converting the dataframe version into the corresponding representation.
+        
+        dest_address: Path where to save the corpus. May not exist
+        dataframes: DataFrame representation of the corpus
+        """
+        representation = self.from_dataframes(dataframes)
+        Parser.export_corpus_from_files(dest_address, representation)
+    
+    @staticmethod
+    def export_corpus_from_files(dest_address: Path, files: Dict[str,Tuple[str,str]]):
+        """
+        Saves the corpus into dest_address. The files will be named after its key.
+        
+        dest_addres: Path where to save the corpus. May not exist
+        files: Maps file address or file name to its corpus representation and its full text.
+        """
+        if not dest_address.is_dir():
+            dest_address.mkdir()
+            
+        for filedir, (annotated_text, raw_text) in files.items():
+            name = Path(filedir).name
+            dest = dest_address / name
+            dest.write_text(annotated_text)
+            dest = dest_address / (name + ".txt")
+            dest.write_text(raw_text)
