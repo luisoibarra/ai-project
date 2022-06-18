@@ -20,7 +20,7 @@ class BretParser(Parser):
         self.argumentative_unit_regex = re.compile(self.ARGUMENTATIVE_UNIT)
         self.relation_regex = re.compile(self.RELATION)
 
-    def parse(self, content:str, file: Path) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def parse(self, content:str, file: Path, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
         Parse `content` returning DataFrames containing
         the argumentative unit and the relation information.
@@ -61,6 +61,7 @@ class BretParser(Parser):
             if argument_match:
                 argument_dict = argument_match.groupdict()
                 
+                argument_dict["prop_id"] = int(argument_dict["prop_id"])
                 argument_dict["prop_init"] = int(argument_dict["prop_init"])
                 argument_dict["prop_end"] = int(argument_dict["prop_end"])
                 
@@ -68,7 +69,13 @@ class BretParser(Parser):
                 continue
             relation_match = self.relation_regex.match(line)
             if relation_match:
-                relations = relations.append(relation_match.groupdict(), ignore_index=True)
+                argument_dict = relation_match.groupdict()
+                
+                argument_dict["relation_id"] = int(argument_dict["relation_id"])
+                argument_dict["prop_id_source"] = int(argument_dict["prop_id_source"])
+                argument_dict["prop_id_target"] = int(argument_dict["prop_id_target"])
+                
+                relations = relations.append(argument_dict, ignore_index=True)
                 continue
             log.warning(f"Line {i} file {file.name}. Match not found: {line}")
         
@@ -101,7 +108,7 @@ class BretParser(Parser):
         
         return argumentative_units, relations, non_argumentative_units
 
-    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english") -> Dict[str, Tuple[str,str]]:
+    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english", **kwargs) -> Dict[str, Tuple[str,str]]:
         """
         Creates a Bret annotated corpus representing the received DataFrames. 
         
@@ -155,13 +162,3 @@ class BretParser(Parser):
         
         return results
     
-if __name__ == "__main__":
-    base = Path(__file__) / ".." / ".." / "corpus" / "ArgumentAnnotatedEssays-2.0" / "brat-project-final" / "brat-project-final"
-    base = base.resolve()
-
-    parser = BretParser()
-    result = parser.parse_dir(base)
-    result1, result2, result3 = next(x for x in result.values())
-    print(result1.describe())
-    print(result2.describe())
-    print(result3.describe())

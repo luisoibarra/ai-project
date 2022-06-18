@@ -20,7 +20,7 @@ class Parser:
         """
         return file.is_file() and file.name.endswith(self.accepted_files)
 
-    def parse_dir(self, corpus_path: Path) -> Dict[str,Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]]:
+    def parse_dir(self, corpus_path: Path, **kwargs) -> Dict[str,Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]]:
         """
         Parse the file
         
@@ -40,7 +40,7 @@ class Parser:
         def read(slice):
             for file in files[batch*slice:batch*(slice+1)]:
                 if self._should_read_file(file):
-                    result = self.parse_file(file)
+                    result = self.parse_file(file, **kwargs)
                     results[str(file)] = result
         
         with ThreadPoolExecutor(max_workers=max_worker) as exe:
@@ -55,7 +55,7 @@ class Parser:
         
         return results
 
-    def parse_file(self, file: Path) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def parse_file(self, file: Path, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
         Parse the content of `file` returning two DataFrames containing
         the argumentative unit and the relation information.
@@ -80,9 +80,9 @@ class Parser:
           
         return: (argumentative_units, relationsm non_argumentative_units)
         """
-        return self.parse(file.read_text(), file)
+        return self.parse(file.read_text(), file, **kwargs)
     
-    def parse(self, content:str, file: Optional[Path] = None) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def parse(self, content:str, file: Optional[Path] = None, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
         Parse `content` returning DataFrames containing
         the argumentative unit and the relation information.
@@ -112,7 +112,7 @@ class Parser:
         """
         raise NotImplementedError()
 
-    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english") -> Dict[str, Tuple[str,str]]:
+    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english", **kwargs) -> Dict[str, Tuple[str,str]]:
         """
         Creates file with annotated corpus representing the received DataFrames. 
         
@@ -124,18 +124,18 @@ class Parser:
         """
         raise NotImplementedError()
         
-    def export_from_dataframes(self, dest_address: Path, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]]):
+    def export_from_dataframes(self, dest_address: Path, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], **kwargs):
         """
         Saves the corpus to into dest_address, converting the dataframe version into the corresponding representation.
         
         dest_address: Path where to save the corpus. May not exist
         dataframes: DataFrame representation of the corpus
         """
-        representation = self.from_dataframes(dataframes)
-        Parser.export_corpus_from_files(dest_address, representation)
+        representation = self.from_dataframes(dataframes, **kwargs)
+        Parser.export_corpus_from_files(dest_address, representation, **kwargs)
     
     @staticmethod
-    def export_corpus_from_files(dest_address: Path, files: Dict[str,Tuple[str,str]]):
+    def export_corpus_from_files(dest_address: Path, files: Dict[str,Tuple[str,str]], suffix: str = ".conll"):
         """
         Saves the corpus into dest_address. The files will be named after its key.
         
@@ -147,6 +147,7 @@ class Parser:
             
         for filedir, (annotated_text, raw_text) in files.items():
             name = Path(filedir).name
+            if suffix: name += suffix
             dest = dest_address / name
             dest.write_text(annotated_text)
             dest = dest_address / (name + ".txt")
