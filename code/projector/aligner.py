@@ -1,5 +1,7 @@
+from utils.console_utils import make_command, run_bash_command
+from projector.translator import Translator
 from corpus_parser.conll_parser import ConllParser
-from typing import Callable, List, Dict, Tuple, Union
+from typing import Callable, List, Dict, Optional, Tuple, Union
 from nltk import sent_tokenize, word_tokenize
 import logging as log
 
@@ -11,6 +13,14 @@ class Aligner:
     """
     
     SEPARATOR = " ||| "
+    
+    def __init__(self, translator: Translator) -> None:
+        """
+        Initialize aligner
+        
+        translator: Class in charge of sentence translation
+        """
+        self.translator = translator
     
     def sentence_alignment_dir(self, corpus_address:Path, sentence_dest:Path, **kwargs):
         """
@@ -96,7 +106,7 @@ class Aligner:
         
         returns: The translated sentence
         """
-        raise NotImplementedError()
+        return self.translator.translate(sentence, source_language, target_language)
     
     def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, **kwargs):
         """
@@ -117,10 +127,7 @@ class SelfLanguageAligner(Aligner):
     
     Its main purpose is testing.
     """
-    
-    def translate(self, sentence: str, source_language="english", target_language="spanish") -> str:
-        return sentence
-    
+
     def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, **kwargs):
         sentence_aligment = sentence_align_dir.read_text().splitlines()
         bidirectional_alignment_text = ""
@@ -128,4 +135,115 @@ class SelfLanguageAligner(Aligner):
             source_sentence, target_sentence = sentence_pair.split(Aligner.SEPARATOR)
             bidirectional_alignment_text += " ".join(f"{i}-{i}" for i,tok in enumerate(source_sentence.split(" "))) + "\n"
         alignment_dest.write_text(bidirectional_alignment_text)
+
+class FastAlignAligner(Aligner):
+    """
+    Aligner using the fast_align algorithm. 
+    """
+    
+    def __init__(self, translator: Translator, fast_align_path: Optional[Path] = None) -> None:
+        super().__init__(translator)
+        self.fast_align_path = fast_align_path if fast_align_path else Path(__file__, "..", "fast_align", "build", "fast_align").resolve()
+    
+    def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, atools_opt: bool=True, **kwargs):
+        """
+        Uses the fast_align algorithm to provide the bidirectional alignment for the
+        sentences in `sentence_align_dir`. 
+        
+        sentence_align_dir: File were the sentences in source and target languages. The 
+        tokens within sentences must be separated by spaces
+        alignment_dest: Destination file to save the word alignment.
+        atools_opt: If the atools optimizations are performed
+        """
+        # ./fast_align -i {sentence_align_dir} -d -o -v > {alignment_dest}
+        fast_align_cmd = f'"{Path(self.fast_align_path).relative_to(Path().resolve())}"'
+        atools_cmd = f'"{Path(self.fast_align_path, "..", "atools").resolve().relative_to(Path().resolve())}"'
+        
+        forward_command = make_command( 
+            fast_align_cmd, 
+            "-i", 
+            str(sentence_align_dir), 
+            "-d",
+            "-o",
+            "-v",
+            ">",
+            str(alignment_dest)
+        )
+        run_bash_command(forward_command)
+        
+        reverse_alignment_dest = alignment_dest / ".." / (alignment_dest.name + ".reverse.bidirectional")
+        reverse_alignment_dest = reverse_alignment_dest.resolve().relative_to(Path().resolve())
+        
+        backward_command = make_command( 
+            fast_align_cmd, 
+            "-i", 
+            str(sentence_align_dir), 
+            "-d",
+            "-o",
+            "-v",
+            "-r",
+            ">",
+            str(reverse_alignment_dest)
+        )
+        run_bash_command(backward_command)
+        
+
+        if atools_opt:
+            revised_alignment_dest = alignment_dest / ".." / (alignment_dest.name + ".revised.bidirectional")
+            revised_alignment_dest = revised_alignment_dest.resolve().relative_to(Path().resolve())
+            improvement_command = make_command(
+                atools_cmd, 
+                "-i", 
+                str(alignment_dest), 
+                "-j",
+                str(reverse_alignment_dest), 
+                "-c",
+                "grow-diag-final-and",
+                ">",
+                str(revised_alignment_dest)
+            )
             
+            run_bash_command(improvement_command)
+            
+            copy_command = make_command(
+                "cp", 
+                str(revised_alignment_dest),
+                str(alignment_dest), 
+            )
+            
+            run_bash_command(copy_command)
+            
+class AwesomeAlignAligner(Aligner):
+    """
+    Aligner using awesome-align algorithm.
+    """
+
+    SUPPORTED_KEYS = {
+        "model_name_or_path",
+        "data_file"
+        "output_files",
+        "extraction",
+        "batch_size"
+    }
+    
+    def __init__(self, translator: Translator, awesome_align_path: Optional[Path] = None) -> None:
+        super().__init__(translator)
+        self.awesome_align_path = awesome_align_path if awesome_align_path else Path(__file__, "..", "awesome-align", "awesome_align").resolve().relative_to(Path())
+    
+    def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, **kwargs):
+        kwargs = kwargs.copy()
+        
+        kwargs.setdefault("model_name_or_path", "bert-base-multilingual-cased")
+        kwargs.setdefault("output_file", str(alignment_dest))
+        kwargs.setdefault("data_file", str(sentence_align_dir))
+        kwargs.setdefault("batch_size", 32)
+        kwargs.setdefault("extraction", "softmax")
+        
+        awesome_align_cmd = make_command(
+            'python3',
+            f'{self.awesome_align_path / "run_align.py"}',
+            *[f"--{key}={value}" for key,value in kwargs.items() if key in self.SUPPORTED_KEYS]
+        )
+        run_bash_command(awesome_align_cmd)
+        
+        

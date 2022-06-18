@@ -1,18 +1,22 @@
-# data/*
-# !data/**/
-data/corpus/abstrct-master
-data/corpus/ArgumentAnnotatedEssays-2.0
-data/corpus/cdcp_acl17
-data/corpus/CRC_projection
-data/corpus/DrInventor
-data/corpus/MTX_en_projection
-data/corpus/MTX_de_projection
-data/corpus/PersuasiveEssays_projection
-data/corpus/scidtb_argmin_annotations
+# DATA IGNORES
+data/*
+# data/corpus/abstrct-master
+# data/corpus/ArgumentAnnotatedEssays-2.0
+# data/corpus/cdcp_acl17
+# data/corpus/CRC_projection
+# data/corpus/DrInventor
+# data/corpus/MTX_en_projection
+# data/corpus/MTX_de_projection
+# data/corpus/PersuasiveEssays_projection
+# data/corpus/scidtb_argmin_annotations
 
+# COMMON PYHTON IGNORES
 
-!data/corpus/testing/*
-# !data/**/testing/*
 __pycache__
 .vscode
 .pytest_cache
+
+# EXTERNAL TOOLS
+
+projector/fast_align
+projector/awesome-align

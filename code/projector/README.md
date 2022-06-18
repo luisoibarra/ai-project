@@ -34,3 +34,11 @@ a la oración en lenguage origen, etiquetar la oración en lenguaje objetivo con
 ### Algoritmo de proyección
 
 TODO
+
+## Traductores
+
+Los traductores son los encargados de traducir las oraciones del lenguage origen al lenguaje objetivo.
+
+### AlgunTraductor?
+
+TODO
