@@ -14,9 +14,15 @@ La alineación como se puede observar es una relación muchos a muchos entre los
 
 ### fast_align
 
-TODO
+Se usó la herramienta [fast_align](https://github.com/clab/fast_align) para el cálculo de la alineación bidireccional.
+
+Para su uso se creó un wrapper en Python implementado en la clase **FastAlignAligner**.
 
 ### awesome_align
+
+Se usó la herramienta [awesome-align](https://github.com/clab/fast_align) para el cálculo de la alineación bidireccional.
+
+Para su uso se creó un wrapper en Python implementado en la clase **AwesomeAlignAligner**.
 
 TODO
 
@@ -39,6 +45,19 @@ TODO
 
 Los traductores son los encargados de traducir las oraciones del lenguage origen al lenguaje objetivo.
 
-### AlgunTraductor?
+### SelfTranslator
 
-TODO
+Devuelve la misma oración que es necesaria traducir. El propósito principal de este traductor es para probar el flujo del procesamiento cuando no se tiene una manera de traducir el texto.
+
+### FromCorpusTranslator
+
+Busca la oración a traducir en un diccionario. Este diccionario es construído al pasarle dos directorios que contienen archivos paralelos con oraciones paralelas anotadas en el idioma origen y en el idioma fuente. Por ejemplo:
+
+- translation/testing/testing_en:
+  - essay001.en
+  - essay002.en
+- translation/testing/testing_es:
+  - essay001.es
+  - essay002.es
+
+Cada archivo contiene las oraciones en el mismo orden en cada linea.

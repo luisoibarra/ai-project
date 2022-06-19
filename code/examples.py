@@ -1,4 +1,4 @@
-from projector.translator import SelfTranslator
+from projector.translator import SelfTranslator, FromCorpusTranslator
 from corpus_parser.conll_parser import ConllParser
 from pipelines.corpus_pipelines import full_corpus_processing_pipeline, parse_corpus_pipeline
 from projector.projector import SelfLanguageProjector
@@ -18,8 +18,16 @@ def corpus_processing_example():
 
     exported_conll_dir = Path(".", "data", "parsed_to_conll", "testing")
 
-    # aligner = SelfLanguageAligner(SelfTranslator())
-    aligner = FastAlignAligner(SelfTranslator())
+    # translator = SelfTranslator()
+    translator = FromCorpusTranslator(
+        Path(".", "data", "translation", "testing", "testing_en"),
+        Path(".", "data", "translation", "testing", "testing_es"),
+        "english",
+        "spanish"
+    )
+
+    # aligner = SelfLanguageAligner(translator)
+    aligner = FastAlignAligner(translator)
 
     sentences_alignment_dir = Path(".", "data", "sentence_alignment", "testing")
     bidirectional_alignment_dir = Path(".", "data", "bidirectional_alignment", "testing")
