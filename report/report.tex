@@ -6,9 +6,10 @@
 %
 \usepackage{graphicx}
 \usepackage[hidelinks,breaklinks=true,backref=page]{hyperref}
-
+\bibliography{ref}
 \usepackage[spanish]{babel}
 \usepackage[utf8]{inputenc}
+\usepackage{hyperref}
 % Used for displaying a sample figure. If possible, figure files should
 % be included in EPS format.
 %
@@ -150,7 +151,7 @@ Estudios previos (Santos y Zadrozny, 2014; Chiu y Nichols, 2015) han demostrado 
 	\centering
 	\includegraphics[width=12cm]{Fig_1.png}
 	\caption{ La red neuronal de convolución para extraer representaciones de palabras a nivel de carácter. Las flechas discontinuas indican una capa de dropout aplicada antes de que se ingresen los embeddings de caracteres en CNN.}
-	\label{A1}
+	\label{F1}
 \end{figure}
 
 \newpage
@@ -164,7 +165,7 @@ Las redes neuronales recurrentes (RNN) son una poderosa familia de modelos conex
 	\centering
 	\includegraphics[width=12cm]{Fig_2.png}
 	\caption{  Esquema de una unidad LSTM.}
-	\label{A1}
+	\label{F2}
 \end{figure}
 
 \newpage
@@ -241,7 +242,7 @@ Finalmente, se construye este modelo de red neuronal alimentando los vectores de
 		BLSTM network. Dashed arrows indicate dropout
 		layers applied on both the input and output vectors
 		of BLSTM.}
-	\label{A1}
+	\label{F3}
 \end{figure}
 
 
@@ -266,16 +267,17 @@ Finalmente, se construye este modelo de red neuronal alimentando los vectores de
 
 
 \begin{thebibliography}{8}
-\bibitem{ref_article1}
-Author, F.: Article title. Journal \textbf{2}(5), 99--110 (2016)
-
-
-
-
+\bibitem{ref_url}
+TensorFlow Documentation \url{https://www.tensorflow.org/api_docs} 
 
 \bibitem{ref_url1}
-LNCS Homepage, \url{http://www.springer.com/lncs}. Last accessed 4
-Oct 2017
+Keras Documentation, \url{https://faroit.com/keras-docs/1.2.0/}
+
+\bibitem{Paper}
+Ma, Xuezhe and Hovy, Eduard:
+End-to-end sequence labeling via bi-directional lstm-cnns-crf:
+arXiv preprint arXiv:1603.01354 . 2016 
+
 \end{thebibliography}
 
 \end{document}
