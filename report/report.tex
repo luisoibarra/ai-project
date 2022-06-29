@@ -145,70 +145,106 @@ entre dichas cláusulas.
 Estudios previos (Santos y Zadrozny, 2014; Chiu y Nichols, 2015) han demostrado que CNN es un enfoque eficaz para extraer información morfológica (como el prefijo o el sufijo de una palabra) de los caracteres de las palabras y codificarla en representaciones neuronales. La Figura 1 muestra la CNN que usamos para extraer la representación a nivel de carácter de una palabra dada. La CNN es similar a la de Chiu y Nichols (2015), excepto que usamos solo embeddings de caracteres como entradas a la CNN, sin características de tipo de carácter. Se aplica una capa de dropout (Srivastava et al., 2014) antes de que se ingresen las embeddings de caracteres en CNN.
 
 %TODO INSERTAR FIGURA
-Figura 1: La red neuronal de convolución para extraer representaciones de palabras a nivel de carácter. Las flechas discontinuas indican una capa de dropout aplicada antes de que se ingresen los embeddings de caracteres en CNN.
 
+\begin{figure}
+	\centering
+	\includegraphics[width=12cm]{Fig_1.png}
+	\caption{ La red neuronal de convolución para extraer representaciones de palabras a nivel de carácter. Las flechas discontinuas indican una capa de dropout aplicada antes de que se ingresen los embeddings de caracteres en CNN.}
+	\label{A1}
+\end{figure}
+
+\newpage
 
 \subsection{LSTM}
 	
 Las redes neuronales recurrentes (RNN) son una poderosa familia de modelos conexionistas que capturan la dinámica del tiempo a través de ciclos en el grafo. Aunque, en teoría, las RNN son capaces de capturar dependencias de larga distancia, en la práctica fallan debido a los problemas de desaparición/explosión del gradiente (Bengio et al., 1994; Pascanu et al., 2012). Los LSTM (Hochreiter y Schmidhuber, 1997) son variantes de los RNN diseñados para hacer frente a estos problemas de desaparición de gradientes. Básicamente, una unidad LSTM se compone de tres puertas multiplicativas que controlan las proporciones de información para olvidar y pasar al siguiente paso de tiempo. La Figura 2 muestra la estructura básica de una unidad LSTM.
 
 %TODO INSERTAR FIGURA 2
-Figura 2: Esquema de una unidad LSTM
+\begin{figure}
+	\centering
+	\includegraphics[width=12cm]{Fig_2.png}
+	\caption{  Esquema de una unidad LSTM.}
+	\label{A1}
+\end{figure}
+
+\newpage
 
 Formalmente las formulas para actualizar una unidad LSTM en un tiempo t son:
+\begin{equation}
 
-i t = σ(W i h t−1 + U i x t + b i )
+i_{t} = \sigma(W_{i} h_{t−1} + U_{i} x_{t} + b_{i} )
 
-f t = σ(W f h t−1 + U f x t + b f )
+f_{t} = \sigma(W_{f} h_{t−1} + U_{f} x_{t} + b_{f} )
 
-c̃ t = tanh(W c h t−1 + U c x t + b c )
+\tilde {c}_{t}  = tanh(W_{c} h_{t−1} + U_{c} x_{t} + b_{c} )
 
-c t = f t c t−1 + i t c̃ t
+c_{t} = f_{t} \odot c_{t−1 } + i_{t} \odot \tilde{c}_{t}
 
-o t = σ(W o h t−1 + U o x t + b o )
+o_{t} = \sigma(W_{o} h_{t−1} + U_{o} x_{t} + b_{o} )
 
-h t = o t tanh(c t )
+h_{t} = o_{t} \odot tanh(c_{t})
+
+\end{equation}
+
 
 %TODO REVISAR LAS FORMULAS
 
-donde σ es la funcion sigmoidal element-wise y CIRCLE SYMBOL es el producto element-wise. x_t es el  vector entrada (e.g. embeddings de palabras) en el tiempo t, y h_t es el vector de estado oculto (tambien llamado vector de salida) que guarda toda la informacion importante en (y antes) del tiempo  t. U_i , U_f , U_c , U_o denota las matrices de pesos de puertas difetentes para la entrada x_t , y W_i , W_f , W_c , W_o son las matrices de pesos para el estado oculto h_t. b_i , b_f , b_c , b_o denotan los vectores de bias. Cabe señalar que no se incluyen las conexiones de peephole (Gers et al., 2003) en esta formulación LSTM.
+donde $\sigma$ es la funcion sigmoidal element-wise y CIRCLE SYMBOL es el producto element-wise. $x_{t}$ es el  vector entrada (e.g. embeddings de palabras) en el tiempo $t$, y $h_{t}$ es el vector de estado oculto (tambien llamado vector de salida) que guarda toda la informacion importante en (y antes) del tiempo  t. $U_{i}$ , $U_{f}$ , $U_{c}$ , $U_{o}$ denota las matrices de pesos de puertas difetentes para la entrada $x_{t}$ , y $W_{i}$ , $W_{f}$ , $ W_{c}$ , $W_{o}$ son las matrices de pesos para el estado oculto $h_{t}$. $b_{i}$ , $b_{f}$ , $b_{c}$ , $b_{o}$ denotan los vectores de bias. Cabe señalar que no se incluyen las conexiones de peephole (Gers et al., 2003) en esta formulación LSTM.
 
 \subsubsection{BLSTM}
-Para muchas tareas de etiquetado de secuencias, es beneficioso tener acceso a contextos pasados (izquierda) y futuros (derecha). Sin embargo, el estado oculto de LSTM h_t toma información solo del pasado, sin saber nada sobre el futuro. Una solución elegante cuya eficacia ha sido probada por trabajos anteriores (Dyer et al., 2015) es LSTM bidireccional (BLSTM). La idea básica es presentar cada secuencia hacia adelante y hacia atrás en dos estados ocultos separados para capturar información pasada y futura, respectivamente. Luego, los dos estados ocultos se concatenan para formar la salida final.
+Para muchas tareas de etiquetado de secuencias, es beneficioso tener acceso a contextos pasados (izquierda) y futuros (derecha). Sin embargo, el estado oculto de LSTM $h_{t}$ toma información solo del pasado, sin saber nada sobre el futuro. Una solución elegante cuya eficacia ha sido probada por trabajos anteriores (Dyer et al., 2015) es LSTM bidireccional (BLSTM). La idea básica es presentar cada secuencia hacia adelante y hacia atrás en dos estados ocultos separados para capturar información pasada y futura, respectivamente. Luego, los dos estados ocultos se concatenan para formar la salida final.
 
 \subsection{CRF}
-Para las tareas de etiquetado de secuencias (o predicción estructurada general), es beneficioso considerar las correlaciones entre las etiquetas en los vecindarios y decodificar conjuntamente la mejor cadena de etiquetas para una oración de entrada dada. Por ejemplo, en el etiquetado POS, es más probable que un adjetivo vaya seguido de un sustantivo que de un verbo, y en NER con anotación BIO2 estándar (Tjong Kim Sang y Veenstra, 1999), I-ORG no puede seguir a I-PER. Por lo tanto, modelamos la secuencia de etiquetas de forma conjunta utilizando un campo aleatorio condicional (CRF) (Lafferty et al., 2001), en lugar de decodificar cada etiqueta de forma independiente. Formalmente, usamos z = {z_1 , · · · , z_n } para representar una secuencia de entrada genérica donde z i es el vector de entrada de la i-ésima palabra. y = {y_1 , · · · , y_n } representa una secuencia genérica de etiquetas para z. Y(z) denota el conjunto de posibles secuencias de etiquetas para z. El modelo probabilístico para la secuencia CRF define una familia de probabilidad condicional p(y|z; W, b) sobre todas las posibles secuencias de etiquetas "y", dado "z" con la siguiente forma:
+Para las tareas de etiquetado de secuencias (o predicción estructurada general), es beneficioso considerar las correlaciones entre las etiquetas en los vecindarios y decodificar conjuntamente la mejor cadena de etiquetas para una oración de entrada dada. Por ejemplo, en el etiquetado POS, es más probable que un adjetivo vaya seguido de un sustantivo que de un verbo, y en NER con anotación BIO2 estándar (Tjong Kim Sang y Veenstra, 1999), I-ORG no puede seguir a I-PER. Por lo tanto, modelamos la secuencia de etiquetas de forma conjunta utilizando un campo aleatorio condicional (CRF) (Lafferty et al., 2001), en lugar de decodificar cada etiqueta de forma independiente. Formalmente, usamos $z = \{z_{1}$ ,··· , $z_{n} \}$ para representar una secuencia de entrada genérica donde $z_{i}$ es el vector de entrada de la i-ésima palabra. $y = \{y_{1}$ , ··· , $y_n \}$ representa una secuencia genérica de etiquetas para $z$. $Y(z)$ denota el conjunto de posibles secuencias de etiquetas para $z$. El modelo probabilístico para la secuencia CRF define una familia de probabilidad condicional $p(y|z; W, b)$ sobre todas las posibles secuencias de etiquetas "y", dado "z" con la siguiente forma:
 
-p(y|z; W, b) = \dfrac{\prod_{i=1}^{n}{ψ_i (y i−1 , y i , z)}}{\sum_{y_0 ∈ Y(z)}{\prod_{i=1}^{n}{ψ_i( (y_{i-1}',y_i' , z))}}}
+\begin{equation}
+	p(y|z; W, b) =  \frac {\prod_{i=1}^{n} \psi_{i} (y_{i−1}, y_{i} ,z)}
+	{\sum_{y' \in Y(z)} \prod_{i=1}^{n} \psi_{i} (y_{i-1}', y_{i}' , z)}
+\end{equation}
+
+
 
 %TODO REVISAR BIEN LAS FORMULAS
 
-donde ψ_i(y_{i-1}' , y_{i}', z) = exp(W y T 0 ,y z i + b y 0 ,y ) son funciones potencia, u W_y T_0 ,"y" y  b_{y_{i-1}'} ,y son  el vector de pesos y bias correspondiente al par anotado (y' , y), respectivamente. Para el entrenamiento de la CRF , se usa la estimacion de la maxima verosimilitud condicional. Para un conjunto de entrenamiento {(z i , y i )}, el logaritmo de la verosimilitud (conocido como la log-verosimilitud) esta dada por:
+donde $\psi_{i}(y',y, z) = exp(W_{y',y}^{T} z_{i}+ b_{y',y} )$ son funciones potencia, y $W_{y',y}^{T}$ ,$b_{y',y}$  son  el vector de pesos y bias correspondiente al par anotado (y' , y), respectivamente. Para el entrenamiento de la CRF , se usa la estimacion de la maxima verosimilitud condicional. Para un conjunto de entrenamiento ${(z_{i} , y_{i} )}$, el logaritmo de la verosimilitud (conocido como la log-verosimilitud) esta dada por:
 
-L(W, b) =\sum_{0}i{log p(y|z; W, b)}
+\begin{equation}
+	L(W, b) =\sum_{i}{log p(y|z; W, b)}
+\end{equation}
+
 
 %TODO REVISAR TODAS LAS FORMULAS DEBEN ESTAR MAL REPRESENTADAS
 
 El entrenamiento de la maxima verosimilitud escoge parametros tal que la log-verosimilitud es maximizada.
 
 Decodificar es buscar la secuencia de la etiqueta y* con la mayor probabilidad condicional:
+\begin{equation}
+	y\ast = argmax_{y\in Y(z)} p(y|z; W, b)
+\end{equation}
 
-y ∗ = argmax_{y∈Y(z)} p(y|z; W, b)
 
 Para un modelo CRF secuencial (solo se consideran las interacciones entre dos etiquetas sucesivas), el entrenamiento y la decodificación se pueden resolver de manera eficiente adoptando el algoritmo de Viterbi.
 \subsection{BLSTM-CNNs-CRF}
 	
-Finalmente, se construye este modelo de red neuronal alimentando los vectores de salida de BLSTM en una capa CRF. La Figura 3 ilustra la arquitectura de esta red en detalle. Para cada palabra, la CNN calcula la representación a nivel de carácter en la Figura 1 con incrustaciones de caracteres como entradas. Luego, el vector de representación a nivel de carácter se concatena con el vector de inserción de palabras para alimentar la red BLSTM. Finalmente, los vectores de salida de BLSTM se alimentan a la capa CRF para decodificar conjuntamente la mejor secuencia de etiquetas. Como se muestra en la Figura 3, las capas de exclusión se aplican tanto en los vectores de entrada como de salida de BLSTM. Los resultados experimentales muestran que el uso de dropout mejora significativamente el rendimiento de este modelo
+Finalmente, se construye este modelo de red neuronal alimentando los vectores de salida de BLSTM en una capa CRF. La Figura 3 ilustra la arquitectura de esta red en detalle. Para cada palabra, la CNN calcula la representación a nivel de carácter en la Figura 1 con incrustaciones de caracteres como entradas. Luego, el vector de representación a nivel de carácter se concatena con el vector de inserción de palabras para alimentar la red BLSTM. Finalmente, los vectores de salida de BLSTM se alimentan a la capa CRF para decodificar conjuntamente la mejor secuencia de etiquetas. Como se muestra en la Figura 3, las capas de exclusión se aplican tanto en los vectores de entrada como de salida de BLSTM. Los resultados experimentales muestran que el uso de dropout mejora significativamente el rendimiento de este modelo.
 
 %TODO INSERTAR FIGURA 3
-Figure 3: The main architecture of our neural
-network. The character representation for each
-word is computed by the CNN in Figure 1. Then
-the character representation vector is concatenated
-with the word embedding before feeding into the
-BLSTM network. Dashed arrows indicate dropout
-layers applied on both the input and output vectors
-of BLSTM.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=12cm]{Fig_3.png}
+	\caption{  The main architecture of our neural
+		network. The character representation for each
+		word is computed by the CNN in Figure 1. Then
+		the character representation vector is concatenated
+		with the word embedding before feeding into the
+		BLSTM network. Dashed arrows indicate dropout
+		layers applied on both the input and output vectors
+		of BLSTM.}
+	\label{A1}
+\end{figure}
+
+
 
 
 
@@ -233,25 +269,7 @@ of BLSTM.
 \bibitem{ref_article1}
 Author, F.: Article title. Journal \textbf{2}(5), 99--110 (2016)
 
-\subsection{Long Short-Term Memory (LSTM)}
 
-\subsection{Conditional Random Field (CRF)}
-
-
-\section{Implementación}
-\subsection{Tensor Flow}
-
-
-\section{Entrenamiento}
-\subsection{Corpus}
-\subsection{ Hyperparametros y Optimización }
-
-\section{Evaluación}
-\section{Resultados}
-
-\section{Concluciones}
-
-\section{Referencias}
 
 
 
