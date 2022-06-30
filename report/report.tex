@@ -181,13 +181,12 @@ les realiza padding en caso de no tener la longitud máxima.
 
 \subsection{Convolución}
 
-Estudios previos (Santos y Zadrozny, 2014; Chiu y Nichols, 2015) han demostrado que CNN es un 
+Estudios previos han demostrado que CNN es un 
 enfoque eficaz para extraer información morfológica (como el prefijo o el sufijo de una palabra) 
 de los caracteres de las palabras y codificarla en representaciones neuronales. La Figura \ref{F1} muestra 
 la CNN usada para extraer la representación a nivel de caracter de una palabra dada. La CNN 
 es similar a la de Chiu y Nichols (2015), excepto que se usan solo embeddings de caracteres como 
-entradas a la CNN, sin características de tipo de carácter. Se aplica una capa de dropout
-(Srivastava et al., 2014) antes de que se ingresen las embeddings de caracteres en CNN.
+entradas a la CNN, sin características de tipo de carácter. Se aplica una capa de dropout antes de que se ingresen las embeddings de caracteres en CNN.
 
 \begin{figure}
 	\centering
@@ -211,8 +210,7 @@ vector de dimensión $1 \times 30$ que será concatenada a la representación de
 Las redes neuronales recurrentes (RNN) son una poderosa familia de modelos conexionistas que capturan 
 la dinámica del tiempo a través de ciclos en el grafo. Aunque, en teoría, las RNN son capaces de 
 capturar dependencias de larga distancia, en la práctica fallan debido a los problemas de 
-desaparición/explosión del gradiente (Bengio et al., 1994; Pascanu et al., 2012). Los LSTM 
-(Hochreiter y Schmidhuber, 1997) son variantes de los RNN diseñados para hacer frente a estos 
+desaparición/explosión del gradiente . Los LSTM son variantes de los RNN diseñados para hacer frente a estos 
 problemas de desaparición de gradientes. Básicamente, una unidad LSTM se compone de tres puertas
 multiplicativas que controlan las proporciones de información para olvidar y pasar al siguiente 
 paso de tiempo. La Figura 2 muestra la estructura básica de una unidad LSTM.
@@ -267,7 +265,7 @@ vectores de bias.
 Para muchas tareas de etiquetado de secuencias, es beneficioso tener acceso a contextos pasados 
 (izquierda) y futuros (derecha). Sin embargo, el estado oculto de LSTM $h_{t}$ toma información 
 solo del pasado, sin saber nada sobre el futuro. Una solución elegante cuya eficacia ha sido probada 
-por trabajos anteriores (Dyer et al., 2015) es LSTM bidireccional (BLSTM). La idea básica es presentar 
+por trabajos anteriores es LSTM bidireccional (BLSTM). La idea básica es presentar 
 cada secuencia hacia adelante y hacia atrás en dos estados ocultos separados para capturar información 
 pasada y futura, respectivamente. Luego, los dos estados ocultos se concatenan para formar la salida 
 final.
@@ -278,9 +276,9 @@ Para las tareas de etiquetado de secuencias (o predicción estructurada general)
 considerar las correlaciones entre las etiquetas en los vecindarios y decodificar conjuntamente 
 la mejor cadena de etiquetas para una oración de entrada dada. Por ejemplo, en el etiquetado POS, 
 es más probable que un adjetivo vaya seguido de un sustantivo que de un verbo, y en NER con anotación 
-BIO2 estándar (Tjong Kim Sang y Veenstra, 1999), I-ORG no puede seguir a I-PER. Por lo tanto, 
+BIO2 estándar, I-ORG no puede seguir a I-PER. Por lo tanto, 
 modelamos la secuencia de etiquetas de forma conjunta utilizando un campo aleatorio condicional 
-(CRF) (Lafferty et al., 2001), en lugar de decodificar cada etiqueta de forma independiente. 
+(CRF), en lugar de decodificar cada etiqueta de forma independiente. 
 Formalmente, usamos $z = \{z_{1}$ ,··· , $z_{n} \}$ para representar una secuencia de entrada 
 genérica donde $z_{i}$ es el vector de entrada de la i-ésima palabra. $y = \{y_{1}$ , ··· , $y_n \}$ 
 representa una secuencia genérica de etiquetas para $z$. $Y(z)$ denota el conjunto de posibles 
@@ -399,12 +397,12 @@ La selección de los hiperparámetros del modelo fue basada en las sugerencias d
 	\item Droput rate: 0.5
 	\item Filtros: 30
 	\item Tamaño de kernel: 3
-	\item Cantidad unidades en LSTM: 200  
+	\item Cantidad de unidades en LSTM: 200  
 \end{itemize}
 
 \subsection{Duración}
 
-El modelo se corrió durante 25 épocas en un i5-6200U CPU @ 2.30GHz. Cada época
+El modelo se corrió durante 25 epoch en un i5-6200U CPU @ 2.30GHz. Cada época
 duró aproximadamente 2 minutos, con un total de 50 minutos de entrenamiento.
 
 \section{Evaluación}
@@ -437,22 +435,30 @@ densa.
 Como se observa en la Tabla \ref{results} la arquitectura con la capa de convolución
 presenta mejor desempeño en todos los aspectos. Las arquitecturas basadas en CNN 
 contienen un accuracy semejante, aunque su diferencia en la pérdida es un poco más
-grande.
+grande dado el uso o no de las capas densas.
+
+\subsubsection{Accuracy}
+
+Como se puede evidenciar en la gráfica, a partir de 3 epochs el accuracy del modelo en validación se mantiene cercano al 90\% sin muchos cambios y en entrenamiento va hacia la sobreadecuación a partir de ese punto coincidente de ambas mediciones. Es recomendable unos 5 epochs que es lo más estable luego de la intersección.(Figura \ref{acc_fig})
 
 \begin{figure}
 	\centering
-	\includegraphics[width=12cm]{model_cnn_BiLSTM_crf_acc.png}
+	\includegraphics[width=10cm]{model_cnn_BiLSTM_crf_acc.png}
 	\caption{Accuracy durante entrenamiento CNN-BLSTM-CRF}
 	\label{acc_fig}
 \end{figure}
 
+\subsubsection{Loss}
+
+Concordando con el análisis anterior la pérdida de Cross Entropy despega de manera acelerada luego de la intersección de ambas mediciones(entrenamiento y validación) en aproximadamente 3 epochs. De igual manera se recomienda utilizar 5 epochs para mayor certeza.(Figura \ref{loss_fig})
 \begin{figure}
 	\centering
-	\includegraphics[width=12cm]{model_cnn_BiLSTM_crf_loss.png}
+	\includegraphics[width=10cm]{model_cnn_BiLSTM_crf_loss.png}
 	\caption{Pérdida durante entrenamiento CNN-BLSTM-CRF}
 	\label{loss_fig}
 \end{figure}
 
+Aquí también se pone en evidencia la presencia de sobreadecuación a los datos a medida que se usan muchos epochs para el entrenamiento
 \section{Conclusiones}
 
 El modelo propuesto resuelve el problema con una accuracy aproximada del 90\%. Este
