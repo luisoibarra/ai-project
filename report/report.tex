@@ -169,14 +169,14 @@ izquierda a derecha o de derecha a izquierda.
 Para la solución del problema se propone una arquitectura CNN-BLSTM-CRF. Para la representación
 de las palabras en la red neuronal artificial se utilizan embeddings GloVe con dimensión 300.
 La entrada de la red neuronal artificial entonces constituye en un tensor de dimensión 
-$Lx300$ donde $L$ representa el tamaño máximo de la secuencia a entrenar (en el caso de este trabajo
+$L \times 300$ donde $L$ representa el tamaño máximo de la secuencia a entrenar (en el caso de este trabajo
 se utilizaron oraciones). Secuencias que no tengan dicho tamaño se le hace padding a la derecha. 
 Estos embeddings no son entrenables.
 
 Dado que la arquitectura extrae información sobre los caracteres de las palabras, se necesita
 una forma de representar estos. La representación de cada caracter consiste en un embedding
 entrenable de dimensión 100, por lo que cada palabra estaría representada por un tensor de
-dimensión $Wx100$ donde $W$ representa la longitud máxima de las palabras, a las cuales se
+dimensión $W \times 100$ donde $W$ representa la longitud máxima de las palabras, a las cuales se
 les realiza padding en caso de no tener la longitud máxima.
 
 \subsection{Convolución}
@@ -380,7 +380,7 @@ El corpus usado en el entrenamiento constituye una versión en formato
 Conll del corpus Argument Annotated Essays Corpus \cite{corpus}. Este corpus contiene una 
 colección de 402 ensayos argumentativos. Además viene con una selección de archivos
 para entrenamiento, prueba y validación. Dicho corpus fue segmentado
-en oraciones, dando como resultado una división de 5096, 1452 y 609 oraciones para
+en oraciones, dando como resultado una división de 5096(70\%), 1452(20\%) y 609(10\%) oraciones para
 entrenamiento, prueba y validación respectivamente. 
 
 Para el entrenamiento se hizo preprocesamiento sobre el corpus inicial. Primero se llevaron
