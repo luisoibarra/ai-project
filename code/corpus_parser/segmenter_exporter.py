@@ -115,6 +115,10 @@ def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, lang
     dest_tag_content = []
     current_sentence = []
     current_tags = []
+    token_transforms = {
+        "``": '"',
+        "''": '"'
+    }
     for sentence_tuples in conll_paragraph_tuples:
         current_sentence = [word for word, _ in sentence_tuples]
         current_tags = [tag for _, tag in sentence_tuples]
@@ -129,6 +133,7 @@ def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, lang
             dest_sentence_content.append([])
             dest_tag_content.append([])
             for j, tok in enumerate(toks, 1):
+                tok = token_transforms.get(tok, tok)
                 if not current_word.startswith(tok):
                     # Add exceptions here
                     start_exceptions = {
@@ -170,20 +175,21 @@ def export_vocabs(base_path: Path, all_words, all_chars, all_tags):
             f.write(f'{w}\n')
 
 DATA_DIR = Path(__file__, "..", "..", "data").resolve()
-SEGMENTER_DATA_DIR = Path(__file__, "..", "..", "..", "notebook", "data").resolve()
-STAGE_DIR = DATA_DIR / "projection" / "forced_spanish"
+SEGMENTER_DATA_DIR = Path(__file__, "..", "..", "..", "notebook", "data", "english").resolve()
+# STAGE_DIR = DATA_DIR / "projection" / "forced_spanish"
+STAGE_DIR = DATA_DIR / "corpus" / "Org_PE_english"
 
-train_file = STAGE_DIR / "train_PE.es"
+train_file = STAGE_DIR / "train_PE.en"
 train_dest_sent_file = SEGMENTER_DATA_DIR / "train.words.txt"
 train_dest_tag_file = SEGMENTER_DATA_DIR / "train.tags.txt"
 export(train_file, train_dest_sent_file, train_dest_tag_file)
 
-testa_file = STAGE_DIR / "test_PE.es"
+testa_file = STAGE_DIR / "test_PE.en"
 testa_dest_sent_file = SEGMENTER_DATA_DIR / "testa.words.txt"
 testa_dest_tag_file = SEGMENTER_DATA_DIR / "testa.tags.txt"
 export(testa_file, testa_dest_sent_file, testa_dest_tag_file)
 
-testb_file = STAGE_DIR / "dev_PE.es"
+testb_file = STAGE_DIR / "dev_PE.en"
 testb_dest_sent_file = SEGMENTER_DATA_DIR / "testb.words.txt"
 testb_dest_tag_file = SEGMENTER_DATA_DIR / "testb.tags.txt"
 export(testb_file, testb_dest_sent_file, testb_dest_tag_file)
