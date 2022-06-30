@@ -2,6 +2,7 @@
 % LLNCS macro package for Springer Computer Science proceedings;
 % Version 2.20 of 2017/10/04
 %
+
 \documentclass[runningheads]{llncs}
 %
 \usepackage{graphicx}
@@ -19,7 +20,7 @@
 
 \begin{document}
 %
-\title{Argumentación en Prensa Cubana}
+\title{Segmentación de Componentes Argumentativas con modelo CNN-BLSTM-CRF}
 %
 %\titlerunning{Abbreviated paper title}
 % If the paper title is too long for the running head, you can set
@@ -41,11 +42,11 @@ Adrián Hernández Pérez\inst{3}}
 
 El Minado de Argumentos consiste en la extracción de componentes argumentativas 
 y sus relaciones además de su posterior clasificación. El trabajo implementa 
-y usa una red neuronal artificial con arquitectura CNN-BiLSTM-CRF para la
+y usa una red neuronal artificial con arquitectura CNN-BLSTM-CRF para la
 segmentación de las componentes argumentativas usando keras y tensorflow. 
 El problema fue modelado como un problema sequence to sequence en el cual se quería conocer las
 etiquetas BIOES del texto para delimitar las componentes.
-% TODO PONER RESULTADOS
+
 
 \keywords{Convolutional Neural Networks  \and Recurent Neural Networks \and Argument Mining}
 	
@@ -142,31 +143,35 @@ de la extracción de estructuras argumentativas de fuentes no estructuradas de t
 Las estructuras argumentativas en dicho problema se modelan como un grafo en el cual
 los nodos son las componentes argumentativas y las aristas las relaciones entre estas
 componentes. Los nodos del grafo se pueden clasificar en dependencia del tipo de componente
-que sea, como por ejemplo, afirmación o evidencia . Además de la clasificación de los
+que sea, como por ejemplo, afirmación o evidencia y además de la clasificación de los
 nodos se clasifican las relaciones entre estos, como por ejemplo en ataque, apoyo.
 
-Muchos enfoques sobre el Minado de Argumentos asumen que las componentes argumentativas ya
+Existen enfoques sobre el Minado de Argumentos que asumen que las componentes argumentativas ya
 están extraídas y se enfocan sobre las demás partes del problema. En la práctica esto no se
-cumple, ya que el texto viene sin procesar haciendo estos enfoques trabajosos. 
+cumple, ya que el texto viene sin procesar haciendo estos enfoques trabajosos. En este
+trabajo se espera resolver este problema proveyendo de una implementación de un segmentador
+de componentes argumentativas. Se propone el problema como uno sequence to sequence con 
+la arquitectura CNN-BLSTM-CRF. Se utilizará keras y tensorflow para dicha implementación.
 
 \section{Problema a resolver}
 
 El problema a resolver consiste en dado un texto devolver sus estructuras argumentativas.
 Para esto se modeló el problema como un problema sequence to sequence, en el cual dado una
-secuencia de palabras se desea conocer sus etiquetas BIOES. Las etiquetas BIOES delimitarían
+secuencia de palabras se desea conocer sus etiquetas BIOES. Las etiquetas BIOES delimitan
 las componentes argumentativas haciendo posible su extracción. Se eligió este tipo en particular
-de etiquetas ya que se trabaja con BiLSTM y con estas no se pierde información al leerlas de 
+de etiquetas ya que se trabaja con BLSTM y con estas no se pierde información al leerlas de 
 izquierda a derecha o de derecha a izquierda.
 
-\section{Modelación}
+\section{Modelos}
 
 \subsection{Embeddings}
 
-Para la solución del problema se propone una arquitectura CNN-BiLSTM-CRF. Para la representación
+Para la solución del problema se propone una arquitectura CNN-BLSTM-CRF. Para la representación
 de las palabras en la red neuronal artificial se utilizan embeddings GloVe con dimensión 300.
-La entrada de la red neuronal artificial entonces consituye en un tensor de dimensión 
-$Lx300$ donde $L$ representa el tamaño máximo de la secuencia a entrenar. Secuencias que
-no tengan dicho tamaño se le hace padding a la derecha. Estos embeddings no son entrenables.
+La entrada de la red neuronal artificial entonces constituye en un tensor de dimensión 
+$Lx300$ donde $L$ representa el tamaño máximo de la secuencia a entrenar (en el caso de este trabajo
+se utilizaron oraciones). Secuencias que no tengan dicho tamaño se le hace padding a la derecha. 
+Estos embeddings no son entrenables.
 
 Dado que la arquitectura extrae información sobre los caracteres de las palabras, se necesita
 una forma de representar estos. La representación de cada caracter consiste en un embedding
@@ -178,7 +183,7 @@ les realiza padding en caso de no tener la longitud máxima.
 
 Estudios previos (Santos y Zadrozny, 2014; Chiu y Nichols, 2015) han demostrado que CNN es un 
 enfoque eficaz para extraer información morfológica (como el prefijo o el sufijo de una palabra) 
-de los caracteres de las palabras y codificarla en representaciones neuronales. La Figura 1 muestra 
+de los caracteres de las palabras y codificarla en representaciones neuronales. La Figura \ref{F1} muestra 
 la CNN usada para extraer la representación a nivel de caracter de una palabra dada. La CNN 
 es similar a la de Chiu y Nichols (2015), excepto que se usan solo embeddings de caracteres como 
 entradas a la CNN, sin características de tipo de carácter. Se aplica una capa de dropout
@@ -187,7 +192,9 @@ entradas a la CNN, sin características de tipo de carácter. Se aplica una capa
 \begin{figure}
 	\centering
 	\includegraphics[width=12cm]{Fig_1.png}
-	\caption{ La red neuronal de convolución para extraer representaciones de palabras a nivel de carácter. Las flechas discontinuas indican una capa de dropout aplicada antes de que se ingresen los embeddings de caracteres en CNN.}
+	\caption{ La red neuronal de convolución para extraer representaciones de palabras 
+	a nivel de carácter. Las flechas discontinuas indican una capa de dropout aplicada antes 
+	de que se ingresen los embeddings de caracteres en CNN.}
 	\label{F1}
 \end{figure}
 
@@ -195,9 +202,9 @@ entradas a la CNN, sin características de tipo de carácter. Se aplica una capa
 
 Para esta capa se tomó el tamaño del kernel de convolción como 3, con padding hacia los lados 
 no afectando así la dimensión del tamaño de la palabra al salir de la convolución. Como resultado
-se obtiene un vector de $Wx30$ donde 30 es la cantidad de filtros de la capa. Esta salida a su vez
+se obtiene un vector de $W \times 30$ donde 30 es la cantidad de filtros de la capa. Esta salida a su vez
 luego es comprimida con un max pooling devolviendo la representación final de la palabra como un
-vector de dimensión $1x30$.
+vector de dimensión $1 \times 30$ que será concatenada a la representación de la palabra asociada.
 
 \subsection{LSTM}
 	
@@ -219,34 +226,41 @@ paso de tiempo. La Figura 2 muestra la estructura básica de una unidad LSTM.
 
 \newpage
 
-Formalmente las formulas para actualizar una unidad LSTM en un tiempo t son:
+Formalmente las fórmulas para actualizar una unidad LSTM en un tiempo t son:
+
 \begin{equation}
+i_{t} = \sigma(W_{i} h_{t-1} + U_{i} x_{t} + b_{i})
+\end{equation}
 
-i_{t} = \sigma(W_{i} h_{t−1} + U_{i} x_{t} + b_{i} )
+\begin{equation}
+f_{t} = \sigma(W_{f} h_{t-1} + U_{f} x_{t} + b_{f})
+\end{equation}
 
-f_{t} = \sigma(W_{f} h_{t−1} + U_{f} x_{t} + b_{f} )
+\begin{equation}
+\tilde{c}_{t} = \tanh(W_{c} h_{t-1} + U_{c} x_{t} + b_{c})
+\end{equation}
 
-\tilde {c}_{t}  = tanh(W_{c} h_{t−1} + U_{c} x_{t} + b_{c} )
+\begin{equation}
+c_{t} = f_{t} \odot c_{t-1} + i_{t} \odot \tilde{c}_{t}
+\end{equation}
 
-c_{t} = f_{t} \odot c_{t−1 } + i_{t} \odot \tilde{c}_{t}
+\begin{equation}
+o_t = \sigma(W_{o} h_{t-1} + U_{o} x_{t} + b_{o})
+\end{equation}
 
-o_{t} = \sigma(W_{o} h_{t−1} + U_{o} x_{t} + b_{o} )
-
-h_{t} = o_{t} \odot tanh(c_{t})
-
+\begin{equation}
+h_{t} = o_{t} \odot \tanh( c_{t})
 \end{equation}
 
 
-%TODO REVISAR LAS FORMULAS
 
-donde $\sigma$ es la funcion sigmoidal element-wise y CIRCLE SYMBOL es el producto element-wise. 
+donde $\sigma$ es la función sigmoidal elemento a elemento y $\odot$ es el producto elemento a elemento. 
 $x_{t}$ es el  vector entrada (e.g. embeddings de palabras) en el tiempo $t$, y $h_{t}$ es el 
-vector de estado oculto (tambien llamado vector de salida) que guarda toda la informacion importante 
+vector de estado oculto (tambien llamado vector de salida) que guarda toda la información importante 
 en (y antes) del tiempo  t. $U_{i}$ , $U_{f}$ , $U_{c}$ , $U_{o}$ denota las matrices de pesos de 
-puertas difetentes para la entrada $x_{t}$ , y $W_{i}$ , $W_{f}$ , $ W_{c}$ , $W_{o}$ son las
+puertas diferentes para la entrada $x_{t}$ , y $W_{i}$ , $W_{f}$ , $ W_{c}$ , $W_{o}$ son las
 matrices de pesos para el estado oculto $h_{t}$. $b_{i}$ , $b_{f}$ , $b_{c}$ , $b_{o}$ denotan los 
-vectores de bias. Cabe señalar que no se incluyen las conexiones de peephole (Gers et al., 2003) en 
-esta formulación LSTM.
+vectores de bias.
 
 \subsubsection{BLSTM}
 
@@ -275,31 +289,29 @@ familia de probabilidad condicional $p(y|z; W, b)$ sobre todas las posibles secu
 etiquetas "y", dado "z" con la siguiente forma:
 
 \begin{equation}
-	p(y|z; W, b) =  \frac {\prod_{i=1}^{n} \psi_{i} (y_{i−1}, y_{i} ,z)}
+	p(y|z; W, b) =  \frac {\prod_{i=1}^{n} \psi_{i} (y_{i-1}, y_{i} ,z)}
 	{\sum_{y' \in Y(z)} \prod_{i=1}^{n} \psi_{i} (y_{i-1}', y_{i}' , z)}
 \end{equation}
 
-%TODO REVISAR BIEN LAS FORMULAS
-
 donde $\psi_{i}(y',y, z) = exp(W_{y',y}^{T} z_{i}+ b_{y',y} )$ son funciones potencia, 
 y $W_{y',y}^{T}$ ,$b_{y',y}$  son  el vector de pesos y bias correspondiente al par anotado 
-(y' , y), respectivamente. Para el entrenamiento de la CRF , se usa la estimacion de la máxima 
+(y' , y), respectivamente. Para el entrenamiento de la CRF , se usa la estimación de la máxima 
 verosimilitud condicional. Para un conjunto de entrenamiento ${(z_{i} , y_{i} )}$, el 
 logaritmo de la verosimilitud (conocido como la log-verosimilitud) esta dada por:
 
 \begin{equation}
-	L(W, b) =\sum_{i}{log p(y|z; W, b)}
+	L(W, b) =\sum_{i}{\log p(y|z; W, b)}
 \end{equation}
 
 
 %TODO REVISAR TODAS LAS FORMULAS DEBEN ESTAR MAL REPRESENTADAS
 
-El entrenamiento de la maxima verosimilitud escoge parametros tal que la log-verosimilitud 
+El entrenamiento de la máxima verosimilitud escoge parámetros tal que la log-verosimilitud 
 es maximizada.
 
-Decodificar es buscar la secuencia de la etiqueta y* con la mayor probabilidad condicional:
+Decodificar es buscar la secuencia de la etiqueta $y^*$ con la mayor probabilidad condicional:
 \begin{equation}
-	y\ast = argmax_{y\in Y(z)} p(y|z; W, b)
+	y^\ast = argmax_{y\in Y(z)} p(y|z; W, b)
 \end{equation}
 
 
@@ -310,26 +322,24 @@ de Viterbi.
 \subsection{BLSTM-CNNs-CRF}
 	
 Finalmente, se construye este modelo de red neuronal alimentando los vectores de salida de BLSTM 
-en una capa CRF. La Figura 3 ilustra la arquitectura de esta red en detalle. Para cada palabra, 
-la CNN calcula la representación a nivel de carácter en la Figura 1 con incrustaciones de caracteres 
+en una capa CRF. La Figura \ref{F3} ilustra la arquitectura de esta red en detalle. Para cada palabra, 
+la CNN calcula la representación a nivel de carácter en la Figura \ref{F1} con embeddings de caracteres 
 como entradas. Luego, el vector de representación a nivel de carácter se concatena con el vector de 
-inserción de palabras para alimentar la red BLSTM. Finalmente, los vectores de salida de BLSTM se 
-alimentan a la capa CRF para decodificar conjuntamente la mejor secuencia de etiquetas. Como se 
-muestra en la Figura 3, las capas de exclusión se aplican tanto en los vectores de entrada como 
-de salida de BLSTM. Los resultados experimentales muestran que el uso de dropout mejora 
-significativamente el rendimiento de este modelo.
+de palabras para alimentar la red BLSTM. Finalmente, los vectores de salida de BLSTM se 
+pasan a la capa CRF para decodificar conjuntamente la mejor secuencia de etiquetas. Como se 
+muestra en la Figura \ref{F3}, las capas de exclusión se aplican tanto en los vectores de entrada como 
+de salida de BLSTM.
 
 \begin{figure}
 	\centering
 	\includegraphics[width=12cm]{Fig_3.png}
-	\caption{  The main architecture of our neural
-		network. The character representation for each
-		word is computed by the CNN in Figure 1. Then
-		the character representation vector is concatenated
-		with the word embedding before feeding into the
-		BLSTM network. Dashed arrows indicate dropout
-		layers applied on both the input and output vectors
-		of BLSTM.}
+	\caption{ La principal arquitectura de la red neuronal.
+		La representación de los caracteres de cada palabra
+		son computados por la CNN en Figura \ref{F1}. Luego
+		la representación es concatenada con el embedding de
+		la palabra antes de pasarselo a la red BLSTM. Líneas
+		discontinuas indican que capas de dropout son aplicadas
+		en la entrada y salida de BLSTM.}
 	\label{F3}
 \end{figure}
 
@@ -339,8 +349,8 @@ significativamente el rendimiento de este modelo.
 Para la implementación de la red neuronal artificial se utilizó la imagen de docker
 \emph{tensorflow/tensorflow:2.9.1-jupyter}. Como su nombre menciona, esta imagen
 trae la versión especificada de tensorflow y además está preparada para ser corrida
-como un jupyter notebook. Dado que esta imagen no contenía todos los requisitos, se
-creó una a partir de esta para trabajar con más comodidad. 
+como un jupyter notebook. Esta imagen no contenía la implementación de CRF por lo que
+se creó otra a partir de esta con la biblioteca que lo contenía.
 
 El componente principal del modelo constituyen las capas de este. Para la implementación
 se hizo uso de las siguientes \cite{tensorflowDoc} \cite{kerasDoc}:
@@ -366,12 +376,19 @@ se hizo uso de las siguientes \cite{tensorflowDoc} \cite{kerasDoc}:
 
 \subsection{Corpus Usado}
 
-El corpus usado en el entrenamiento consituye una versión en formato
+El corpus usado en el entrenamiento constituye una versión en formato
 Conll del corpus Argument Annotated Essays Corpus \cite{corpus}. Este corpus contiene una 
 colección de 402 ensayos argumentativos. Además viene con una selección de archivos
 para entrenamiento, prueba y validación. Dicho corpus fue segmentado
 en oraciones, dando como resultado una división de 5096, 1452 y 609 oraciones para
-entrenamiento, prueba y validación respectivamente.
+entrenamiento, prueba y validación respectivamente. 
+
+Para el entrenamiento se hizo preprocesamiento sobre el corpus inicial. Primero se llevaron
+las etiquetas de BIO a BIOES, luego se separaron las oraciones de los párrafos y se guardaron
+en un archivo con una oración en cada línea. Se hizo algo similar con las anotaciones de la oración.
+Además se crearon archivos conteniendo el vocabulario, los caracteres y las etiquetas para futuros
+procesamientos.
+
 
 \subsection{Hiperparámetros y optimización}
 
@@ -387,7 +404,7 @@ La selección de los hiperparámetros del modelo fue basada en las sugerencias d
 
 \subsection{Duración}
 
-El modelo se corrió durante 25 épocas en un i5-6200U CPU @ 2.30GHz × 4. Cada época
+El modelo se corrió durante 25 épocas en un i5-6200U CPU @ 2.30GHz. Cada época
 duró aproximadamente 2 minutos, con un total de 50 minutos de entrenamiento.
 
 \section{Evaluación}
@@ -396,22 +413,23 @@ Para la evaluación se tomaron las medidas de accuracy y de la función de pérd
 crearon gráficas con los valores para ser examinados. Para tener más referencias se
 crearon modelos alternativos al propuesto. Entre estos se encuentran variantes del
 modelo sin la capa de embeddigns de caracteres y variantes que conectan a la salida
-de la capa BiLSTM una red densa con la capa CRF. Las variantes tendrán las siguientes
-signaturas, CNN si tiene la capa de convolción de los caracteres y DN si tiene la capa
+de la capa BLSTM una red densa con la capa CRF. Las variantes tendrán las siguientes
+signaturas, CNN si tiene la capa de convolción de los caracteres y DL si tiene la capa
 densa.
 
 \subsection{Resultados}
 
 \begin{table}
+	\centering
 	\caption{Resultados.}\label{results}
 	\begin{tabular}{|l|l|l|}
 	\hline
 		Arq. &  Accuracy & Loss \\
 	\hline
-		CNN-BiLSTM-DN-CRF & 0.9097 & 0.6028 \\
-		CNN-BiLSTM-CRF 	  & 0.9080 & 0.5299 \\
-		BiLSTM-DN-CRF 	  & 0.8868 & 0.7424 \\
-		BiLSTM-CRF 		  & 0.8923 & 0.8415 \\
+		CNN-BLSTM-DL-CRF & 0.9097 & 0.6028 \\
+		CNN-BLSTM-CRF 	  & 0.9080 & 0.5299 \\
+		BLSTM-DL-CRF 	  & 0.8868 & 0.7424 \\
+		BLSTM-CRF 		  & 0.8923 & 0.8415 \\
 	\hline
 	\end{tabular}
 \end{table}
@@ -423,22 +441,22 @@ grande.
 
 \begin{figure}
 	\centering
-	\includegraphics[width=12cm]{model_cnn_bilstm_crf_acc.png}
-	\caption{Accuracy durante entrenamiento CNN-BiLSTM-CRF}
+	\includegraphics[width=12cm]{model_cnn_BiLSTM_crf_acc.png}
+	\caption{Accuracy durante entrenamiento CNN-BLSTM-CRF}
 	\label{acc_fig}
 \end{figure}
 
 \begin{figure}
 	\centering
-	\includegraphics[width=12cm]{model_cnn_bilstm_crf_loss.png}
-	\caption{Pérdida durante entrenamiento CNN-BiLSTM-CRF}
+	\includegraphics[width=12cm]{model_cnn_BiLSTM_crf_loss.png}
+	\caption{Pérdida durante entrenamiento CNN-BLSTM-CRF}
 	\label{loss_fig}
 \end{figure}
 
 \section{Conclusiones}
 
 El modelo propuesto resuelve el problema con una accuracy aproximada del 90\%. Este
-resultado sastisface las métricas deseadas del problema de segmentación de componentes
+resultado satisface las métricas deseadas del problema de segmentación de componentes
 argumentativas. 
 
 \begin{thebibliography}{8}
