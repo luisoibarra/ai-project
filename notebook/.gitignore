@@ -1,3 +1,5 @@
 .ipynb_checkpoints
 data/glove.840B.300d.txt
 *.h5
+*.npz
+*.json
