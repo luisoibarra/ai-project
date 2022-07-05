@@ -4,3 +4,4 @@ data/glove.840B.300d.txt
 *.npz
 *.json
 /data/*/model_*
+/data/*/full_model_*
