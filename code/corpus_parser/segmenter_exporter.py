@@ -97,7 +97,7 @@ def build_df(tuples):
         "Word": [word for sentence in tuples for word, tag in sentence],
     })
 
-def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, language: str="english"):
+def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, language: str="english", with_meta_tags=True):
     """
     Creates from `conll_file` two files, `dest_sentence_file` and 
     `dest_tag_file`, containing the sentences splitted by `nltk` 
@@ -107,9 +107,10 @@ def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, lang
     conll_file: Original conll file
     dest_sentence_file: File containing the sentences.
     dest_tag_file: File containing the tags.
+    with_meta_tags: If the output should conserve the meta tags
     """
     
-    conll_paragraph_tuples = convert_to_tuples(conll_file)
+    conll_paragraph_tuples = convert_to_tuples(conll_file, with_meta_tags=with_meta_tags)
 
     dest_sentence_content = []
     dest_tag_content = []
@@ -174,24 +175,38 @@ def export_vocabs(base_path: Path, all_words, all_chars, all_tags):
         for w in sorted(all_tags):
             f.write(f'{w}\n')
 
+# Base data directory
 DATA_DIR = Path(__file__, "..", "..", "data").resolve()
-SEGMENTER_DATA_DIR = Path(__file__, "..", "..", "..", "notebook", "data", "english").resolve()
-# STAGE_DIR = DATA_DIR / "projection" / "forced_spanish"
+
+# Destiny data directory
+SEGMENTER_DATA_DIR = Path(__file__, "..", "..", "..", "notebook", "data", "english_no_meta_tags").resolve()
+
+# Source data diretory
 STAGE_DIR = DATA_DIR / "corpus" / "Org_PE_english"
 
+# Language
+LANGUAGE = "english"
+
+# If only take the BIOES tags and no other information annotated in them
+WITH_META_TAGS = False
+
+# Train Block
 train_file = STAGE_DIR / "train_PE.en"
 train_dest_sent_file = SEGMENTER_DATA_DIR / "train.words.txt"
 train_dest_tag_file = SEGMENTER_DATA_DIR / "train.tags.txt"
-export(train_file, train_dest_sent_file, train_dest_tag_file)
+export(train_file, train_dest_sent_file, train_dest_tag_file, language=LANGUAGE, with_meta_tags=WITH_META_TAGS)
 
+# Test Block
 testa_file = STAGE_DIR / "test_PE.en"
 testa_dest_sent_file = SEGMENTER_DATA_DIR / "testa.words.txt"
 testa_dest_tag_file = SEGMENTER_DATA_DIR / "testa.tags.txt"
-export(testa_file, testa_dest_sent_file, testa_dest_tag_file)
+export(testa_file, testa_dest_sent_file, testa_dest_tag_file, language=LANGUAGE, with_meta_tags=WITH_META_TAGS)
 
+# Validation Block
 testb_file = STAGE_DIR / "dev_PE.en"
 testb_dest_sent_file = SEGMENTER_DATA_DIR / "testb.words.txt"
 testb_dest_tag_file = SEGMENTER_DATA_DIR / "testb.tags.txt"
-export(testb_file, testb_dest_sent_file, testb_dest_tag_file)
+export(testb_file, testb_dest_sent_file, testb_dest_tag_file, language=LANGUAGE, with_meta_tags=WITH_META_TAGS)
 
+# Export vocabularies
 export_vocabs(SEGMENTER_DATA_DIR, all_words, all_chars, all_tags)

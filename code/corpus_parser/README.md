@@ -67,6 +67,15 @@ El estándar seleccionado es el formato CONLL con representación textual. Por e
 - `archivo1.conll`: Contiene las anotaciones BIO en formato CONLL.
 - `archivo1.txt`: Contiene el texto original de las anotaciones.
 
+## Exportador
+
+El archivo `segmenter_exporter.py` contiene los algoritmos necesarios para exportar archivos _conll_, en este caso podría ser los generados por el parser construído al formato de entrenamiento de la red neuronal encargada de la segmentación de las componentes argumentativas. Este formato consiste en 9 archivos:
+
+- [train, testa, testb].words.txt: En cada linea contiene una entrada con los tokens separados por espacios. Esta entrada puede ser segmentda en oraciones o párrafos en dependencia de lo que se necesite.
+- [train, testa, testb].tags.txt: En cada linea contiene una entrada con las etiquetas de los tokens separados por espacios. Esta entrada puede ser segmentda en oraciones o párrafos en dependencia de lo que se necesite.
+- vocab.[chars, tags, words].txt: En cada linea contiene los caracteres, tags y palabras como conjunto.
+
 ## TODO
 
 - [ ] Mejorar los tesitng poniendo los test como fixtures.
+- [ ] Agregar opción de separar por oraciones o por textos.
