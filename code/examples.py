@@ -47,7 +47,13 @@ def corpus_processing_example():
         projector)
 
 if __name__ == "__main__":
-    corpus_processing_example()
-    # parse_corpus_pipeline(Path("data", "corpus", "forced_spanish"),
-    #                       Path("data", "parsed_to_conll", "forced_spanish"),
-    #                       ConllParser(".en"))
+    # corpus_processing_example()
+    parse_corpus_pipeline(Path("code", "data", "corpus", "ArgumentAnnotatedEssays-2.0", "train-test-split", "dev"),
+                          Path("code", "data", "parsed_to_conll", "ArgumentAnnotatedEssays-2.0", "dev"),
+                          BretParser())
+    parse_corpus_pipeline(Path("code", "data", "corpus", "ArgumentAnnotatedEssays-2.0", "train-test-split", "train"),
+                          Path("code", "data", "parsed_to_conll", "ArgumentAnnotatedEssays-2.0", "train"),
+                          BretParser())
+    parse_corpus_pipeline(Path("code", "data", "corpus", "ArgumentAnnotatedEssays-2.0", "train-test-split", "test"),
+                          Path("code", "data", "parsed_to_conll", "ArgumentAnnotatedEssays-2.0", "test"),
+                          BretParser())

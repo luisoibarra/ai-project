@@ -5,3 +5,4 @@ data/glove.840B.300d.txt
 *.json
 /data/*/model_*
 /data/*/full_model_*
+/data/*/images

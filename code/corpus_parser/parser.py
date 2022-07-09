@@ -34,8 +34,7 @@ class Parser:
         max_worker = 20
         
         files = [file for file in corpus_path.iterdir()]
-        batch = len(files)//max_worker
-        if batch == 0: batch = 1 # At least one must be the batch size
+        batch = len(files)//max_worker + 1
         
         def read(slice):
             for file in files[batch*slice:batch*(slice+1)]:
