@@ -6,6 +6,9 @@ from concurrent.futures import ThreadPoolExecutor, Future, wait
 
 import pandas as pd
 
+ArgumentationInfo = Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
+AnnotatedRawTextInfo = Tuple[str,str]
+
 class Parser:
     
     def __init__(self, accepted_files: Iterable[str]) -> None:
@@ -20,7 +23,7 @@ class Parser:
         """
         return file.is_file() and file.name.endswith(self.accepted_files)
 
-    def parse_dir(self, corpus_path: Path, **kwargs) -> Dict[str,Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]]:
+    def parse_dir(self, corpus_path: Path, **kwargs) -> Dict[str, ArgumentationInfo]:
         """
         Parse the file
         
@@ -54,7 +57,7 @@ class Parser:
         
         return results
 
-    def parse_file(self, file: Path, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def parse_file(self, file: Path, **kwargs) -> ArgumentationInfo:
         """
         Parse the content of `file` returning two DataFrames containing
         the argumentative unit and the relation information.
@@ -81,7 +84,7 @@ class Parser:
         """
         return self.parse(file.read_text(), file, **kwargs)
     
-    def parse(self, content:str, file: Optional[Path] = None, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def parse(self, content:str, file: Optional[Path] = None, **kwargs) -> ArgumentationInfo:
         """
         Parse `content` returning DataFrames containing
         the argumentative unit and the relation information.
@@ -111,7 +114,7 @@ class Parser:
         """
         raise NotImplementedError()
 
-    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english", **kwargs) -> Dict[str, Tuple[str,str]]:
+    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], language="english", **kwargs) -> Dict[str, AnnotatedRawTextInfo]:
         """
         Creates file with annotated corpus representing the received DataFrames. 
         
@@ -123,7 +126,7 @@ class Parser:
         """
         raise NotImplementedError()
         
-    def export_from_dataframes(self, dest_address: Path, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], **kwargs):
+    def export_from_dataframes(self, dest_address: Path, dataframes: Dict[str, ArgumentationInfo], **kwargs):
         """
         Saves the corpus to into dest_address, converting the dataframe version into the corresponding representation.
         
@@ -134,7 +137,7 @@ class Parser:
         Parser.export_corpus_from_files(dest_address, representation, **kwargs)
     
     @staticmethod
-    def export_corpus_from_files(dest_address: Path, files: Dict[str,Tuple[str,str]], suffix: str = ".conll"):
+    def export_corpus_from_files(dest_address: Path, files: Dict[str,AnnotatedRawTextInfo], suffix: str = ".conll"):
         """
         Saves the corpus into dest_address. The files will be named after its key.
         

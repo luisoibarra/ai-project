@@ -2,7 +2,7 @@ from cmath import nan
 from pathlib import Path
 import re
 from typing import Dict, Optional, Tuple
-from .parser import Parser
+from .parser import AnnotatedRawTextInfo, ArgumentationInfo, Parser
 import pandas as pd
 import logging as log
 
@@ -12,15 +12,15 @@ class BretParser(Parser):
     """
     
     # Regex using named groups
-    ARGUMENTATIVE_UNIT = r"^T(?P<prop_id>\d+)\s(?P<prop_type>\w+)\s(?P<prop_init>\d+)\s(?P<prop_end>\d+)\s(?P<prop_text>.+)\s*$" # Verify if \n are stripped
-    RELATION = r"^R(?P<relation_id>\d+)\s(?P<relation_type>\w+)\sArg1:T(?P<prop_id_source>\d+)\sArg2:T(?P<prop_id_target>\d+)\s*$" # Verify if \n are stripped
+    ARGUMENTATIVE_UNIT = r"^T(?P<prop_id>\d+)\s(?P<prop_type>\w+)\s(?P<prop_init>\d+)\s(?P<prop_end>\d+)\s(?P<prop_text>.+)\s*$"
+    RELATION = r"^R(?P<relation_id>\d+)\s(?P<relation_type>\w+)\sArg1:T(?P<prop_id_source>\d+)\sArg2:T(?P<prop_id_target>\d+)\s*$"
     
     def __init__(self) -> None:
         super().__init__((".ann",))
         self.argumentative_unit_regex = re.compile(self.ARGUMENTATIVE_UNIT)
         self.relation_regex = re.compile(self.RELATION)
 
-    def parse(self, content:str, file: Path, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def parse(self, content:str, file: Path, **kwargs) -> ArgumentationInfo:
         """
         Parse `content` returning DataFrames containing
         the argumentative unit and the relation information.
@@ -108,7 +108,7 @@ class BretParser(Parser):
         
         return argumentative_units, relations, non_argumentative_units
 
-    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english", **kwargs) -> Dict[str, Tuple[str,str]]:
+    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], language="english", **kwargs) -> Dict[str, AnnotatedRawTextInfo]:
         """
         Creates a Bret annotated corpus representing the received DataFrames. 
         

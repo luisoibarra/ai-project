@@ -2,10 +2,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
-from .parser import Parser
+from .parser import AnnotatedRawTextInfo, ArgumentationInfo, Parser
 import re
 import logging as log
 from nltk.tokenize import word_tokenize
+
+ConllTagInfo = Dict[str, Union[str,int]]
 
 class ConllParser(Parser):
     
@@ -16,7 +18,7 @@ class ConllParser(Parser):
         super().__init__((".conll", *additional_supported_formats))
         self.annotation_regex = re.compile(self.ANNOTATION_REGEX)
     
-    def parse(self, content:str, file: Optional[Path] = None, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def parse(self, content:str, file: Optional[Path] = None, **kwargs) -> ArgumentationInfo:
         """
         Parse `content` returning DataFrames containing
         the argumentative unit and the relation information.
@@ -142,7 +144,7 @@ class ConllParser(Parser):
         return argumentative_units, relations, non_argumentative_units
         
 
-    def from_dataframes(self, dataframes: Dict[str, Tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame]], language="english", get_tags=False, **kwargs) -> Dict[str, Tuple[Union[str, List[Dict[str,Union[str,int]]]],str]]:
+    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], language="english", get_tags=False, **kwargs) -> Dict[str, Union[AnnotatedRawTextInfo, Tuple[List[ConllTagInfo], str]]]:
         """
         Creates a CONLL annotated corpus representing the received DataFrames. 
         
@@ -220,7 +222,7 @@ class ConllParser(Parser):
         
         return results
 
-    def get_text_from_annotation(self, annotations: List[Dict[str, Union[str,int]]]) -> str:
+    def get_text_from_annotation(self, annotations: List[ConllTagInfo]) -> str:
         """
         Maps the anotation to its associated text representation.
         
