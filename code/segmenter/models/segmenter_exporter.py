@@ -1,13 +1,8 @@
 
 from pathlib import Path
-import pandas as pd
 import nltk
 
-all_words = set()
-all_tags = set()
-all_chars = set()
-
-def convert_to_tuples(data:Path, bioes=True, meta_tags_level=99, meta_tags_separator="-"):
+def convert_to_tuples(data:Path, all_words: set, all_tags: set, all_chars: set, bioes=True, meta_tags_level=99, meta_tags_separator="-"):
     tags = []
     current_paragraph_tags = []
     current_paragraph_words = []
@@ -90,14 +85,7 @@ def convert_bio_to_bioes(bio_tags: list):
   
     return bioes_tags
 
-def build_df(tuples):
-    return pd.DataFrame({
-        "Paragraph": [i for i,sentence in enumerate(tuples) for _ in sentence],
-        "Tag": [tag for sentence in tuples for word, tag in sentence],
-        "Word": [word for sentence in tuples for word, tag in sentence],
-    })
-
-def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, language: str="english", meta_tags_level=99, meta_tags_separator="-"):
+def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, all_words: set, all_tags: set, all_chars: set, language: str="english", meta_tags_level=99, meta_tags_separator="-"):
     """
     Creates from `conll_file` two files, `dest_sentence_file` and 
     `dest_tag_file`, containing the sentences splitted by `nltk` 
@@ -110,7 +98,7 @@ def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, lang
     with_meta_tags: If the output should conserve the meta tags
     """
     
-    conll_paragraph_tuples = convert_to_tuples(conll_file, meta_tags_level=meta_tags_level, meta_tags_separator=meta_tags_separator)
+    conll_paragraph_tuples = convert_to_tuples(conll_file, all_words, all_tags, all_chars, meta_tags_level=meta_tags_level, meta_tags_separator=meta_tags_separator)
 
     dest_sentence_content = []
     dest_tag_content = []
@@ -166,7 +154,7 @@ def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, lang
     dest_sentence_file.write_text("\n".join(" ".join(sentence) for sentence in dest_sentence_content))
     dest_tag_file.write_text("\n".join(" ".join(tags) for tags in dest_tag_content))
 
-def export_vocabs(base_path: Path, all_words, all_chars, all_tags):
+def export_vocabs(base_path: Path, all_words: set, all_chars: set, all_tags: set):
     
     with (base_path / 'vocab.words.txt').open('w') as f:
         for w in sorted(all_words):
@@ -178,7 +166,7 @@ def export_vocabs(base_path: Path, all_words, all_chars, all_tags):
         for w in sorted(all_tags):
             f.write(f'{w}\n')
 
-def export_from_directory(source_directory: Path, dest_sent_file: Path, dest_tag_file: Path, language: str="english", meta_tags_level=99, meta_tags_separator="-"):
+def export_from_directory(source_directory: Path, dest_sent_file: Path, dest_tag_file: Path, all_words: set, all_tags: set, all_chars: set, language: str="english", meta_tags_level=99, meta_tags_separator="-"):
     temp_sent_file = Path("tempsentence16916312639")
     temp_tag_file = Path("temptag16916312639")
     temp_sent_file.touch()
@@ -186,77 +174,116 @@ def export_from_directory(source_directory: Path, dest_sent_file: Path, dest_tag
     
     dest_sent_file.touch()
     dest_tag_file.touch()
+    try:
+        with dest_sent_file.open("w") as dest_sent:
+            with dest_tag_file.open("w") as dest_tag:
+                for file in source_directory.iterdir():
+                    if file.suffix == ".conll":
+                        export(file, temp_sent_file, temp_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tags_separator)
+                        dest_sent.write(temp_sent_file.read_text().replace("\n", " "))
+                        dest_tag.write(temp_tag_file.read_text().replace("\n", " "))
+                        dest_sent.write("\n")
+                        dest_tag.write("\n")
+    finally:
+        temp_sent_file.unlink()
+        temp_tag_file.unlink()
+
+
+def export_files(data_dir: Path, dest_dir: Path, language: str, meta_tags_level: int, meta_tag_separator="-"):
+    """
+    Creates a dataset for the files in `data_dir`, this directory must contain 3 .conll
+    annotated files called train, dev and test. The separation between samples is an 
+    empty line. The data is saved in `dest_dir`
     
-    with dest_sent_file.open("w") as dest_sent:
-        with dest_tag_file.open("w") as dest_tag:
-            for file in source_directory.iterdir():
-                if file.suffix == ".conll":
-                    export(file, temp_sent_file, temp_tag_file, language, meta_tags_level, meta_tags_separator)
-                    dest_sent.write(temp_sent_file.read_text().replace("\n", " "))
-                    dest_tag.write(temp_tag_file.read_text().replace("\n", " "))
-                    dest_sent.write("\n")
-                    dest_tag.write("\n")
+    data_dir: Data's directory
+    dest_dir: Directory to save the proccessed data
+    language: Language of the data
+    meta_tags_level: Level of annotation to get: 0: BIOES, 1: BIOES-OtherTag, 2: BIOES-Tag1-Tag2, ...
+    meta_tag_separator: Conll annotation separator 
+    """
+
+    all_words = set()
+    all_tags = set()
+    all_chars = set()
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
     
-    temp_sent_file.unlink()
-    temp_tag_file.unlink()
-
-# Base data directory
-DATA_DIR = Path(__file__, "..", "..", "data").resolve()
-
-# Language
-LANGUAGE = "english"
-
-# Level of annotation to get: 0: BIOES, 1: BIOES-OtherTag, 2: BIOES-Tag1-Tag2, ...
-META_TAGS_LEVEL = 1
-
-META_TAG_SEPARATOR = "-"
-
-def export_files():
-    # Destiny data directory
-    SEGMENTER_DATA_DIR = Path(__file__, "..", "..", "..", "notebook", "data", "english_no_meta_tags").resolve()
-
-    # Source data directory
-    STAGE_DIR = DATA_DIR / "corpus" / "Org_PE_english"
-
     # Train Block
-    train_file = STAGE_DIR / "train_PE.en"
-    train_dest_sent_file = SEGMENTER_DATA_DIR / "train.words.txt"
-    train_dest_tag_file = SEGMENTER_DATA_DIR / "train.tags.txt"
-    export(train_file, train_dest_sent_file, train_dest_tag_file, language=LANGUAGE, with_meta_tags=META_TAGS_LEVEL)
+    train_file = data_dir / "train.conll"
+    train_dest_sent_file = dest_dir / "train.words.txt"
+    train_dest_tag_file = dest_dir / "train.tags.txt"
+    export(train_file, train_dest_sent_file, train_dest_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
 
     # Test Block
-    testa_file = STAGE_DIR / "test_PE.en"
-    testa_dest_sent_file = SEGMENTER_DATA_DIR / "testa.words.txt"
-    testa_dest_tag_file = SEGMENTER_DATA_DIR / "testa.tags.txt"
-    export(testa_file, testa_dest_sent_file, testa_dest_tag_file, language=LANGUAGE, with_meta_tags=META_TAGS_LEVEL)
+    testa_file = data_dir / "test.conll"
+    testa_dest_sent_file = dest_dir / "testa.words.txt"
+    testa_dest_tag_file = dest_dir / "testa.tags.txt"
+    export(testa_file, testa_dest_sent_file, testa_dest_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
 
     # Validation Block
-    testb_file = STAGE_DIR / "dev_PE.en"
-    testb_dest_sent_file = SEGMENTER_DATA_DIR / "testb.words.txt"
-    testb_dest_tag_file = SEGMENTER_DATA_DIR / "testb.tags.txt"
-    export(testb_file, testb_dest_sent_file, testb_dest_tag_file, language=LANGUAGE, with_meta_tags=META_TAGS_LEVEL)
+    testb_file = data_dir / "dev.conll"
+    testb_dest_sent_file = dest_dir / "testb.words.txt"
+    testb_dest_tag_file = dest_dir / "testb.tags.txt"
+    export(testb_file, testb_dest_sent_file, testb_dest_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
 
     # Export vocabularies
-    export_vocabs(SEGMENTER_DATA_DIR, all_words, all_chars, all_tags)
+    export_vocabs(dest_dir, all_words, all_chars, all_tags)
 
-def export_directory():
-    DATASET_DIR = DATA_DIR / "parsed_to_conll" / "ArgumentAnnotatedEssays-2.0"
-    # Destiny data directory
-    SEGMENTER_DATA_DIR = Path(__file__, "..", "..", "..", "notebook", "data", "english_paragraph").resolve()
-
-    testb_sent_file = SEGMENTER_DATA_DIR / "testb.words.txt"
-    testb_tag_file = SEGMENTER_DATA_DIR / "testb.tags.txt"
-    export_from_directory(DATASET_DIR / "dev", testb_sent_file, testb_tag_file, LANGUAGE, META_TAGS_LEVEL, META_TAG_SEPARATOR)
+def export_directory(data_dir: Path, dest_dir: Path, language: str, meta_tags_level: int, meta_tag_separator="-"):
+    """
+    Creates a dataset for the files in `data_dir`, this directory must contain 3 directories
+    train, dev and test with .conll annotated files. The data is saved in `dest_dir`
     
-    testa_sent_file = SEGMENTER_DATA_DIR / "testa.words.txt"
-    testa_tag_file = SEGMENTER_DATA_DIR / "testa.tags.txt"
-    export_from_directory(DATASET_DIR / "test", testa_sent_file, testa_tag_file, LANGUAGE, META_TAGS_LEVEL, META_TAG_SEPARATOR)
+    data_dir: Data's directory
+    dest_dir: Directory to save the proccessed data
+    language: Language of the data
+    meta_tags_level: Level of annotation to get: 0: BIOES, 1: BIOES-OtherTag, 2: BIOES-Tag1-Tag2, ...
+    meta_tag_separator: Conll annotation separator 
+    """
+    
+    all_words = set()
+    all_tags = set()
+    all_chars = set()
+    
+    dest_dir.mkdir(parents=True, exist_ok=True)
 
-    train_sent_file = SEGMENTER_DATA_DIR / "train.words.txt"
-    train_tag_file = SEGMENTER_DATA_DIR / "train.tags.txt"
-    export_from_directory(DATASET_DIR / "train", train_sent_file, train_tag_file, LANGUAGE, META_TAGS_LEVEL, META_TAG_SEPARATOR)
+    testb_sent_file = dest_dir / "testb.words.txt"
+    testb_tag_file = dest_dir / "testb.tags.txt"
+    export_from_directory(data_dir / "dev", testb_sent_file, testb_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
+    
+    testa_sent_file = dest_dir / "testa.words.txt"
+    testa_tag_file = dest_dir / "testa.tags.txt"
+    export_from_directory(data_dir / "test", testa_sent_file, testa_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
+
+    train_sent_file = dest_dir / "train.words.txt"
+    train_tag_file = dest_dir / "train.tags.txt"
+    export_from_directory(data_dir / "train", train_sent_file, train_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
 
     # Export vocabularies
-    export_vocabs(SEGMENTER_DATA_DIR, all_words, all_chars, all_tags)
+    export_vocabs(dest_dir, all_words, all_chars, all_tags)
 
-export_directory()
+if __name__ == "__main__":
+
+    data_dir = Path(__file__, "..", "..", "..", "data").resolve()
+    data_dir = data_dir / "parsed_to_conll" / "ArgumentAnnotatedEssays-2.0"
+    
+    dest_dir = Path(__file__, "..", "data", "english_paragraph").resolve()
+    
+    language = "english"
+    meta_tags_level = 1
+    meta_tag_separator = "-"
+    
+    export_directory(data_dir, dest_dir, language, meta_tags_level, meta_tag_separator)
+    
+
+    # data_dir = Path(__file__, "..", "..", "..", "data").resolve()
+    # data_dir = data_dir / "corpus" / "Org_PE_english"
+
+    # dest_dir = Path(__file__, "..", "data", "test_data").resolve()
+
+    # language = "english"
+    # meta_tags_level = 1
+    # meta_tag_separator = "-"
+    
+    # export_files(data_dir, dest_dir, language, meta_tags_level, meta_tag_separator)
+

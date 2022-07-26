@@ -15,8 +15,10 @@ data/*
 __pycache__
 .vscode
 .pytest_cache
+.ipynb_checkpoints
 
 # EXTERNAL TOOLS
 
 projector/fast_align
 projector/awesome-align
+projector/mgiza

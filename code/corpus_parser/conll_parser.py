@@ -11,8 +11,9 @@ ConllTagInfo = Dict[str, Union[str,int]]
 
 class ConllParser(Parser):
     
-    ANNOTATION_REGEX = r"^(?P<token_text>[^\s]+)\s(?P<bio_tag>[BIO])(-(?P<prop_type>\w+))?(-(?P<relation_type>\w+))?(-(?P<relation_distance>-?\d+))?\s*$"
-    ANNOTATION_FORMAT = "{tok}\t{bio_tag}-{prop_type}-{relation_type}-{relation_distance}\n"
+    ANNOTATION_REGEX = r"^(?P<tok>[^\s]+)\s(?P<bio_tag>[BIO])(-(?P<prop_type>\w+))?(-(?P<relation_type>\w+))?(-(?P<relation_distance>-?\d+))?\s*$"
+    TAG_FORMAT = "{bio_tag}-{prop_type}-{relation_type}-{relation_distance}"
+    ANNOTATION_FORMAT = f"{{tok}}\t{TAG_FORMAT}\n"
     
     def __init__(self, *additional_supported_formats) -> None:
         super().__init__((".conll", *additional_supported_formats))
@@ -79,12 +80,12 @@ class ConllParser(Parser):
                 return word
 
             if propositions[current]["bio_tag"] == "O":
-                proposition_text = extract_language_tag(propositions[current]["token_text"])
+                proposition_text = extract_language_tag(propositions[current]["tok"])
                 current += 1
 
                 # Join all tokens
                 while current < len(propositions) and propositions[current]["bio_tag"] == "O":
-                    proposition_text += " " + extract_language_tag(propositions[current]["token_text"])
+                    proposition_text += " " + extract_language_tag(propositions[current]["tok"])
                     current += 1
             else:
                 if propositions[current]["bio_tag"] != "B":
@@ -94,12 +95,12 @@ class ConllParser(Parser):
                         log.warning(f"Proposition '{proposition}' doesn't start with a B")
                 
                 # Current should be B
-                proposition_text = extract_language_tag(propositions[current]["token_text"])
+                proposition_text = extract_language_tag(propositions[current]["tok"])
                 current += 1
                 
                 # Join all tokens
                 while current < len(propositions) and propositions[current]["bio_tag"] == "I":
-                    proposition_text += " " + extract_language_tag(propositions[current]["token_text"])
+                    proposition_text += " " + extract_language_tag(propositions[current]["tok"])
                     current += 1
                 
             return proposition_text, current
@@ -144,7 +145,7 @@ class ConllParser(Parser):
         return argumentative_units, relations, non_argumentative_units
         
 
-    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], language="english", get_tags=False, **kwargs) -> Dict[str, Union[AnnotatedRawTextInfo, Tuple[List[ConllTagInfo], str]]]:
+    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], language="english", get_tags=False, exact_text=False, **kwargs) -> Dict[str, Union[AnnotatedRawTextInfo, Tuple[List[ConllTagInfo], str]]]:
         """
         Creates a CONLL annotated corpus representing the received DataFrames. 
         
@@ -152,6 +153,8 @@ class ConllParser(Parser):
         the keys aren't important, so a mock key can be passed.
         language: Language for tokenization process
         get_tags: If true, returns the tags instead of the annotated text
+        exact_text: If true, returns the exact text representation else will 
+        be returned the tokens separated by whitespaces
         
         returns: CONLL annotated string or CONLL annotations, Raw text
         """
@@ -168,11 +171,16 @@ class ConllParser(Parser):
             all_units = all_units.reindex(columns=["prop_id", "prop_type", "prop_init", "prop_end", "prop_text"])
             max_length = all_units["prop_end"].max()
             
-            text = default_gap*max_length
+            text = default_gap*max_length if exact_text else ""
             
             for index, (prop_id, prop_type, prop_init, prop_end, prop_text) in all_units.iterrows():
-                text = text[:prop_init] + prop_text + text[prop_end:]
                 prop_tokens = word_tokenize(prop_text, language=language)
+                
+                if exact_text:
+                    text = text[:prop_init] + prop_text + text[prop_end:]
+                else:
+                    text += default_gap.join(prop_tokens) + default_gap
+                
                 if pd.notna(prop_type):
                     # It's the begining of a proposition
                     for i,tok in enumerate(prop_tokens):
@@ -197,6 +205,8 @@ class ConllParser(Parser):
                                 "relation_type": relation_type,
                                 "relation_distance": relation_distance
                         })
+                        tags_info[-1]["full_tag"] = self.TAG_FORMAT.format_map(tags_info[-1]).replace("-none", "")
+
                         to_write = self.ANNOTATION_FORMAT.format_map(tags_info[-1])
                         to_write = to_write.replace("-none", "") # Remove unnecesary labels
                         result += to_write
@@ -211,6 +221,8 @@ class ConllParser(Parser):
                             "relation_type": "none",
                             "relation_distance": "none"
                         })
+                        tags_info[-1]["full_tag"] = "O"
+
                         to_write = self.ANNOTATION_FORMAT.format_map(tags_info[-1])
                         to_write = to_write.replace("-none", "") # Remove unnecesary labels
                         result += to_write
@@ -222,17 +234,32 @@ class ConllParser(Parser):
         
         return results
 
-    def get_text_from_annotation(self, annotations: List[ConllTagInfo]) -> str:
+    def get_conll_text_from_annotation(self, annotations: List[str]) -> str:
         """
-        Maps the anotation to its associated text representation.
+        Maps the anotation to its associated conll text representation.
         
         annotations: List containig the dictionary that holds the information about the tag
         
-        returns: The annotated text representation
+        returns: The annotated conll text representation
         """
         text = ""
         for annotation in annotations:
+            match = self.annotation_regex.match(annotation)
+            assert match
+            annotation = match.groupdict()
             to_write = self.ANNOTATION_FORMAT.format_map(annotation)
             to_write = to_write.replace("-none", "") # Remove unnecesary labels
+            to_write = to_write.replace("-None", "") # Remove unnecesary labels
             text += to_write
         return text
+
+    def get_text_from_annotation(self, annotations: List[ConllTagInfo]) -> str:
+        """
+        Returns the text associated with `annotations`. All tokens are placed in
+        a single line separated by a whitespace. 
+        
+        annotations: List containig the dictionary that holds the information about the tag
+        
+        returns: The annotated conll text representation
+        """
+        return " ".join([x["tok"] for x in annotations])

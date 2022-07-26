@@ -1,1 +1,0 @@
-docker build -t tensorflow-addons:2.9.1-jupyter

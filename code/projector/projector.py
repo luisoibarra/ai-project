@@ -1,7 +1,8 @@
 
+import string
 from projector.aligner import Aligner
 from corpus_parser.conll_parser import ConllParser
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 import logging as log
 
 from pathlib import Path
@@ -90,14 +91,14 @@ class Projector:
             if not export_dir.exists():
                 export_dir.mkdir()
             
-            target_annotated_file = export_dir / (annotated_file.name + ".exported.conll")
+            target_annotated_file = export_dir / (annotated_file.name + ".projected.conll")
             
-            final_projection_text = parser.get_text_from_annotation(file_target_projection)
+            final_projection_text = parser.get_conll_text_from_annotation(file_target_projection)
             
             target_annotated_file.write_text(final_projection_text)
             
     def project_sentence(self, sentence_source_tokens:List[str], sentence_target_tokens:List[str],
-                         alignment:Dict[int, List[int]], tags_info: List[Dict[str,Union[str,int]]]) -> List[Dict[str,Union[str,int]]]:
+                         alignment:Dict[int, List[int]], tags_info: List[Dict[str,Union[str,int]]]) -> List[str]:
         """
         Projects the `sentence_source_tokens`'s annotations annotated in `tags_info` into `sentence_target_tokens`
         using the bidirectional `alignment` information.
@@ -139,8 +140,201 @@ class SelfLanguageProjector(Projector):
     """
     
     def project_sentence(self, sentence_source_tokens: List[str], sentence_target_tokens: List[str], 
-                         alignment: Dict[int, List[int]], tags_info: List[Dict[str, Union[str, int]]]) -> List[Dict[str, Union[str, int]]]:
+                         alignment: Dict[int, List[int]], tags_info: List[Dict[str, Union[str, int]]]) -> List[str]:
         assert len(sentence_source_tokens) == len(tags_info), "Tokens and tags amounts aren't equal"
         assert tuple(sentence_source_tokens) == tuple(tag_info["tok"] for tag_info in tags_info), "Tokens and tags lexeme aren't equal"
-        return tags_info
+        return [info["full_tag"] for info in tags_info]
     
+class CrossLingualAnnotationProjector(Projector):
+    """
+    Projector based on the projection algorithm in https://github.com/UKPLab/coling2018-xling_argument_mining
+    """
+    
+    def project_sentence(self, sentence_source_tokens: List[str], sentence_target_tokens: List[str], 
+                         alignment: Dict[int, List[int]], tags_info: List[Dict[str, Union[str, int]]]) -> List[str]:
+        
+        remove_tags_that_are_punctuation = False
+        source_tags_type = []
+        source_tags_info = []
+        source_tags_ids = []
+        words = []
+        for i, (word, tag) in enumerate(zip([info["tok"] for info in tags_info], [info["full_tag"] for info in tags_info])):
+
+            if tag.startswith("B") or tag.startswith("S"):
+                try:
+                    tag_type = tag[tag.find("-")+1:]
+                except ValueError:
+                    raise ValueError(
+                        f"Unable to split tag: {tag_type} from line {i+1}"
+                    )
+
+                source_tags_ids.append([len(words)])
+                source_tags_type.append(tag_type)
+                source_tags_info.append(tags_info[i])
+            elif tag.startswith("I"):
+                try:
+                    tag_type = tag[tag.find("-")+1:]
+                except ValueError:
+                    raise ValueError(
+                        f"Unable to split tag: {tag_type} from line {i+1}"
+                    )
+
+                if (
+                    source_tags_ids[-1][-1] == (len(words) - 1)
+                    and source_tags_type[-1] == tag_type
+                ):
+                    source_tags_ids[-1].append(len(words))
+                else:
+                    source_tags_ids.append([len(words)])
+                    source_tags_type.append(tag_type)
+
+            words.append(word)
+        
+        source_words = words
+        
+        target_words = sentence_target_tokens
+        alignments = alignment
+        puncs = set(string.punctuation)
+        
+        assert len(source_tags_type) == len(source_tags_ids)
+
+        if len(target_words) == 0 or len(source_words) == 0:
+            print(
+                f"Warning, empty sentence found. source_words: {source_words}. target_words: {target_words}"
+            )
+            return ["O"] * len(target_words)
+
+        # GET TARGET TAGS IDS
+
+        target_tags_ids: List[List[int]] = []
+        target_tags_types: List[str] = []
+
+        for source_tag_ids, source_tag_type in zip(source_tags_ids, source_tags_type):
+            target_tag = []
+            for tag_id in source_tag_ids:
+                try:
+                    target_tag.extend(alignments[tag_id])
+                except KeyError:
+                    continue
+
+            target_tag = sorted(
+                list(set(target_tag))
+            )  # ENSURE NO DUPLICATED VALUES AND SORT
+
+            if target_tag:
+                target_tags_ids.append(target_tag)
+                target_tags_types.append(source_tag_type)
+
+        # REMOVE TAGS THAT ARE PUNCTUATION
+
+        if remove_tags_that_are_punctuation:
+            for target_tag_idx in range(len(target_tags_ids) - 1, -1, -1):
+                target_tags_c = target_tags_ids[target_tag_idx].copy()
+                for tag_idx in range(len(target_tags_ids[target_tag_idx]) - 1, -1, -1):
+                    try:
+                        tword = target_words[target_tags_ids[target_tag_idx][tag_idx]].strip()
+                    except IndexError:
+                        raise IndexError(
+                            f"\ntarget_tags_ids: {target_tags_ids}\n"
+                            f"target_tags_c: {target_tags_c}\n"
+                            f"target_tags_ids[target_tag_idx]: {target_tags_ids[target_tag_idx]}\n"
+                            f"tag_idx: {tag_idx}\n"
+                            f"target_tag_idx:{target_tag_idx}\n"
+                            f"source_words: {source_words}\n"
+                            f"target_words: {target_words}\n"
+                        )
+                    if all([char in puncs for char in tword]):
+                        print(f"Warning: Removing word: {tword} from projected tag. ")
+                        del target_tags_ids[target_tag_idx][tag_idx]
+
+                if len(target_tags_ids[target_tag_idx]) == 0:
+                    del target_tags_ids[target_tag_idx]
+                    del target_tags_types[target_tag_idx]
+                    print(f"Warning: Removing tag: {[target_words[i] for i in target_tags_c]}")
+
+        # FIX DISCONTINUOUS SPANS
+
+        for target_tag_no, target_tag_ids in enumerate(target_tags_ids):
+
+            # SPLIT IN GROUPS
+
+            groups: List[List[int]] = [[target_tag_ids[0]]]
+            for tag_id in target_tag_ids[1:]:
+                if tag_id != groups[-1][-1] + 1:
+                    groups.append([tag_id])
+                else:
+                    groups[-1].append(tag_id)
+
+            # MERGE GROUPS WITH GAP = 1
+
+            i = 0
+            while i < len(groups) - 1:
+                if groups[i + 1][-1] - groups[i][0] <= 2:
+
+                    groups[i] = (
+                        groups[i]
+                        + list(range(groups[i][-1] + 1, groups[i + 1][0]))
+                        + groups[i + 1]
+                    )
+                    del groups[i + 1]
+                else:
+                    i += 1
+
+            # GET LARGEST GROUP
+
+            target_tags_ids[target_tag_no] = max(groups, key=len)
+
+        # FIX COLLISIONS
+        # MERGE SAME TYPE TAGS
+
+        i = 0
+        while i < len(target_tags_ids) - 1:
+            if target_tags_ids[i][-1] >= target_tags_ids[i + 1][0]:
+
+                if target_tags_types[i] == target_tags_types[i + 1]:
+                    target_tags_ids[i] = sorted(
+                        list(set(target_tags_ids[i] + target_tags_ids[i + 1]))
+                    )
+
+                    del target_tags_ids[i + 1]
+                    del target_tags_types[i + 1]
+
+                else:
+                    i += 1
+            else:
+                i += 1
+
+        # GET LARGEST TAG IF COLLISION
+        i = 0
+        while i < len(target_tags_ids) - 1:
+            if target_tags_ids[i][-1] >= target_tags_ids[i + 1][0]:
+                if len(target_tags_ids[i]) > len(target_tags_ids[i + 1]):
+                    del target_tags_types[i + 1]
+                    del target_tags_ids[i + 1]
+                else:
+                    del target_tags_types[i]
+                    del target_tags_ids[i]
+
+            else:
+                i += 1
+
+        # WRITE TAGS
+
+        target_tags: List[Tuple[str,str]] = [(word, "O") for word in target_words]
+
+        for tag_ids, tag_type in zip(target_tags_ids, target_tags_types):
+            try:
+                if tag_ids:
+                    target_tags[tag_ids[0]] = (target_tags[tag_ids[0]][0], f"B-{tag_type}")
+                    for tag_id in tag_ids[1:]:
+                        target_tags[tag_id] = (target_tags[tag_id][0], f"I-{tag_type}")
+            except IndexError:
+                print(f"target_tags: {target_tags}. tag_id:{tag_ids}")
+                print(f"Source words: {source_words}")
+                print(f"Source tags: {source_tags_ids}")
+                print(f"target_words: {target_words}.")
+                print(f"alignments: {alignments}")
+                print("=================================")
+                raise
+
+        return ["\t".join(x) for x in target_tags]
