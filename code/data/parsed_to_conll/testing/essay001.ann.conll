@@ -8,6 +8,7 @@ or	O
 to	O
 cooperate	O
 ?	O
+
 It	O
 is	O
 always	O
@@ -22,6 +23,7 @@ development	O
 of	O
 economy	O
 .	O
+
 In	O
 order	O
 to	O
@@ -49,6 +51,7 @@ whole	O
 society	O
 prospers	O
 .	O
+
 However	O
 ,	O
 when	O
@@ -82,6 +85,7 @@ individual	O
 whole	O
 life	O
 .	O
+
 From	O
 this	O
 point	O
@@ -103,6 +107,7 @@ during	I-MajorClaim
 primary	I-MajorClaim
 education	I-MajorClaim
 .	O
+
 First	O
 of	O
 all	O
@@ -127,6 +132,7 @@ of	I-Claim
 all	I-Claim
 students	I-Claim
 .	O
+
 What	B-Premise-supports--1
 we	I-Premise-supports--1
 acquired	I-Premise-supports--1
@@ -155,6 +161,7 @@ along	I-Premise-supports--1
 with	I-Premise-supports--1
 others	I-Premise-supports--1
 .	O
+
 During	B-Premise-supports--2
 the	I-Premise-supports--2
 process	I-Premise-supports--2
@@ -197,6 +204,7 @@ when	I-Premise-supports--2
 conflicts	I-Premise-supports--2
 occurred	I-Premise-supports--2
 .	O
+
 All	B-Premise-supports--3
 of	I-Premise-supports--3
 these	I-Premise-supports--3
@@ -219,6 +227,7 @@ the	I-Premise-supports--3
 whole	I-Premise-supports--3
 life	I-Premise-supports--3
 .	O
+
 On	O
 the	O
 other	O
@@ -240,6 +249,7 @@ gain	I-Premise-supports--1
 the	I-Premise-supports--1
 victory	I-Premise-supports--1
 .	O
+
 Hence	O
 it	O
 is	O
@@ -253,6 +263,7 @@ society	I-Claim
 more	I-Claim
 effective	I-Claim
 .	O
+
 However	O
 ,	O
 when	B-Premise-supports-2
@@ -277,6 +288,7 @@ need	I-Premise-supports-2
 the	I-Premise-supports-2
 cooperation	I-Premise-supports-2
 .	O
+
 The	O
 greater	O
 our	O
@@ -289,6 +301,7 @@ competition	O
 we	O
 need	O
 .	O
+
 Take	B-Premise-supports-1
 Olympic	I-Premise-supports-1
 games	I-Premise-supports-1
@@ -351,6 +364,7 @@ the	I-Premise-supports-1
 medical	I-Premise-supports-1
 care	I-Premise-supports-1
 .	O
+
 The	O
 winner	O
 is	O
@@ -365,6 +379,7 @@ the	O
 whole	O
 team	O
 .	O
+
 Therefore	O
 without	B-Claim
 the	I-Claim
@@ -378,6 +393,7 @@ victory	I-Claim
 of	I-Claim
 competition	I-Claim
 .	O
+
 Consequently	O
 ,	O
 no	O
@@ -416,3 +432,4 @@ one	I-MajorClaim
 's	I-MajorClaim
 success	I-MajorClaim
 .	O
+

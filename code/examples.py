@@ -1,7 +1,7 @@
 from projector.translator import SelfTranslator, FromCorpusTranslator
 from corpus_parser.conll_parser import ConllParser
 from pipelines.corpus_pipelines import full_corpus_processing_pipeline, parse_corpus_pipeline
-from projector.projector import SelfLanguageProjector, CrossLingualAnnotationProjector
+from projector.projector import PendingSourceAnnotationProjector, SelfLanguageProjector, CrossLingualAnnotationProjector
 from projector.aligner import SelfLanguageAligner, FastAlignAligner
 
 from corpus_parser.bret_parser import BretParser
@@ -12,15 +12,17 @@ def corpus_processing_example():
     This example is the one that creates the `data/**/testing/` files, except the ones in `data/corpus/testing`
     """
 
-    base_path = Path("code", "data")
-    dataset_name = "testing2"
+    base_path = Path("data")
+    dataset_name = "testing"
 
     corpus_parser = BretParser()
 
     corpus_dir = Path(base_path, "corpus", dataset_name)
 
     exported_conll_dir = Path(base_path, "parsed_to_conll", dataset_name)
-
+    
+    projection_dir = Path(base_path, "projection", dataset_name)
+    
     # translator = SelfTranslator()
     translator = FromCorpusTranslator(
         Path(base_path, "translation", dataset_name, "testing_en"),
@@ -36,9 +38,8 @@ def corpus_processing_example():
     bidirectional_alignment_dir = Path(base_path, "bidirectional_alignment", dataset_name)
 
     # projector = SelfLanguageProjector()
+    # projector = PendingSourceAnnotationProjector()
     projector = CrossLingualAnnotationProjector()
-
-    projection_dir = Path(base_path, "projection", dataset_name)
 
     full_corpus_processing_pipeline(
         corpus_dir, 

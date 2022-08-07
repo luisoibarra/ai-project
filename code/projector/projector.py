@@ -4,6 +4,7 @@ from projector.aligner import Aligner
 from corpus_parser.conll_parser import ConllParser
 from typing import Dict, List, Tuple, Union
 import logging as log
+from utils.console_utils import make_command, run_bash_command
 
 from pathlib import Path
 
@@ -13,7 +14,7 @@ class Projector:
     """
     
     def project_dir(self, annotation_dir: Path, sentence_alignment_dir: Path, bidirectional_alignment_dir: Path,
-                    export_dir: Path, **kwargs):
+                    export_dir: Path, split_senteneces=True, **kwargs):
         """
         Creates annotated corpus in `export_dir` containing the projected labels from `annotation_dir`files using
         the sentence alignments from `sentence_alignment_dir` and the bidiectional alignment from `bidirectional_alignment_dir`
@@ -52,6 +53,7 @@ class Projector:
             annotation_df = parser.parse_file(annotated_file)
             key = str(annotated_file)
             annotation = parser.from_dataframes({key : annotation_df }, get_tags=True, **kwargs)[key][0]
+            annotation = [x for x in annotation if x["bio_tag"]]
             sentences_aligned = sentence_aligned_file.read_text().splitlines()
             bidirectional_alignments = bidirectional_alignment_file.read_text().splitlines()
             
@@ -81,6 +83,8 @@ class Projector:
                 
                 target_projection = self.project_sentence(source_sentence_tokens, target_sentence_tokens,
                                                           bidirectional_alignment_dict, current_annotations)
+                if split_senteneces:
+                    target_projection.append("")
                 file_target_projection.extend(target_projection)
                 
                 current_annotation_offset = next_annotation_offset
@@ -145,9 +149,9 @@ class SelfLanguageProjector(Projector):
         assert tuple(sentence_source_tokens) == tuple(tag_info["tok"] for tag_info in tags_info), "Tokens and tags lexeme aren't equal"
         return [info["full_tag"] for info in tags_info]
     
-class CrossLingualAnnotationProjector(Projector):
+class PendingSourceAnnotationProjector(Projector):
     """
-    Projector based on the projection algorithm in https://github.com/UKPLab/coling2018-xling_argument_mining
+    Projector based on the projection algorithm in TODO find the source, it's a project that use pytorch and the algorithm is spread in the code
     """
     
     def project_sentence(self, sentence_source_tokens: List[str], sentence_target_tokens: List[str], 
@@ -187,7 +191,8 @@ class CrossLingualAnnotationProjector(Projector):
                 else:
                     source_tags_ids.append([len(words)])
                     source_tags_type.append(tag_type)
-
+            elif not tag.startswith("O"):
+                log.warning(f"Invalid tag {tag} at position {i} in {' '.join(sentence_source_tokens)}")
             words.append(word)
         
         source_words = words
@@ -338,3 +343,30 @@ class CrossLingualAnnotationProjector(Projector):
                 raise
 
         return ["\t".join(x) for x in target_tags]
+
+class CrossLingualAnnotationProjector(Projector):
+    """
+    Projector based on the projection algorithm in https://github.com/UKPLab/coling2018-xling_argument_mining
+    """
+    
+    def __init__(self) -> None:
+        super().__init__()
+        self.project_argument_algorithm = Path(__file__, "..", "cooling2018-xling_argument_mining", "projectArguments.py").resolve()
+    
+    def project_dir(self, annotation_dir: Path, sentence_alignment_dir: Path, bidirectional_alignment_dir: Path, export_dir: Path, **kwargs):
+        
+        annotated_files = [file for file in annotation_dir.iterdir() if file.name.endswith(".conll")]
+        sentences_aligned_files = [file for file in sentence_alignment_dir.iterdir() if file.name.endswith(".align")]
+        bidirectional_alignments_files = [file for file in bidirectional_alignment_dir.iterdir() if file.name.endswith(".bidirectional")]
+        
+        for annotated, aligned, bidirectional in zip(annotated_files, sentences_aligned_files, bidirectional_alignments_files):
+            project_cmd = make_command(
+                'python3',
+                f'"{self.project_argument_algorithm}"',
+                f'"{annotated.resolve()}"',
+                f'"{aligned.resolve()}"',
+                f'"{bidirectional.resolve()}"',
+                f'"{(export_dir / (annotated.name + ".projected.conll")).resolve()}"'
+            )
+            run_bash_command(project_cmd)
+    

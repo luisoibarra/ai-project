@@ -23,6 +23,7 @@ to	O
 other	O
 countries	O
 .	O
+
 People	O
 moved	O
 due	O
@@ -40,6 +41,7 @@ higher	O
 salary	O
 jobs	O
 .	O
+
 Some	O
 people	O
 thought	O
@@ -61,6 +63,7 @@ countries	O
 ’	O
 cultures	O
 .	O
+
 However	O
 I	O
 strongly	O
@@ -84,6 +87,7 @@ their	I-MajorClaim
 origin	I-MajorClaim
 values	I-MajorClaim
 .	O
+
 Firstly	O
 ,	O
 maintaining	B-Premise-supports-1
@@ -107,6 +111,7 @@ new	I-Premise-supports-1
 multicultural	I-Premise-supports-1
 environments	I-Premise-supports-1
 .	O
+
 Take	B-Premise-supports--1
 Australia	I-Premise-supports--1
 for	I-Premise-supports--1
@@ -141,6 +146,7 @@ the	I-Premise-supports--1
 public	I-Premise-supports--1
 venues	I-Premise-supports--1
 .	O
+
 Many	B-Premise-supports--2
 Australians	I-Premise-supports--2
 come	I-Premise-supports--2
@@ -161,6 +167,7 @@ the	I-Premise-supports--2
 diverse	I-Premise-supports--2
 values	I-Premise-supports--2
 .	O
+
 These	B-Premise-supports--3
 feedbacks	I-Premise-supports--3
 ,	I-Premise-supports--3
@@ -184,6 +191,7 @@ each	I-Premise-supports--3
 other	I-Premise-supports--3
 more	I-Premise-supports--3
 .	O
+
 Thus	O
 this	O
 makes	O
@@ -200,6 +208,7 @@ is	I-Claim
 paramount	I-Claim
 essential	I-Claim
 .	O
+
 Secondly	O
 ,	O
 it	B-Premise-supports-2
@@ -231,6 +240,7 @@ value	I-Premise-supports--1
 of	I-Premise-supports--1
 origin	I-Premise-supports--1
 .	O
+
 For	O
 instance	O
 ,	O
@@ -250,6 +260,7 @@ with	I-Premise-supports--1
 new	I-Premise-supports--1
 friends	I-Premise-supports--1
 .	O
+
 In	B-Premise-supports--2
 this	I-Premise-supports--2
 new	I-Premise-supports--2
@@ -279,6 +290,7 @@ feeling	I-Premise-supports--2
 being	I-Premise-supports--2
 home	I-Premise-supports--2
 .	O
+
 Fail	B-Premise-supports--3
 to	I-Premise-supports--3
 create	I-Premise-supports--3
@@ -300,6 +312,7 @@ disorder	I-Premise-supports--3
 like	I-Premise-supports--3
 autism	I-Premise-supports--3
 .	O
+
 Hence	O
 ,	O
 it	O
@@ -318,6 +331,7 @@ is	I-Claim
 tremendous	I-Claim
 important	I-Claim
 .	O
+
 To	O
 conclude	O
 ,	O
@@ -340,6 +354,7 @@ the	I-Claim
 new	I-Claim
 cultures	I-Claim
 .	O
+
 As	O
 far	O
 as	O
@@ -369,3 +384,4 @@ many	I-MajorClaim
 culture	I-MajorClaim
 society	I-MajorClaim
 .	O
+

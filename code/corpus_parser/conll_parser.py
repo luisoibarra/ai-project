@@ -5,7 +5,7 @@ import pandas as pd
 from .parser import AnnotatedRawTextInfo, ArgumentationInfo, Parser
 import re
 import logging as log
-from nltk.tokenize import word_tokenize
+from nltk.tokenize import word_tokenize, sent_tokenize
 
 ConllTagInfo = Dict[str, Union[str,int]]
 
@@ -18,7 +18,31 @@ class ConllParser(Parser):
     def __init__(self, *additional_supported_formats) -> None:
         super().__init__((".conll", *additional_supported_formats))
         self.annotation_regex = re.compile(self.ANNOTATION_REGEX)
+        self.__sent_separator = {"tok":"\n", "bio_tag":""}
     
+    def __split_sentences(self, line_infos: list, language: str) -> list:
+        """
+        Create a new list and adds a sentence separator to the `line_infos`'s content
+        the separator is the dtctionary `{"tok":"", "bio_tag":""}`
+        
+        line_infos: Original information list
+        language: Language content
+        
+        returns: A new list containing a sentence separator 
+        """
+        new_line_infos = []
+        content = " ".join(tok["tok"] for tok in line_infos)
+        index = 0
+        for sentence in sent_tokenize(content, language=language):
+            for word in sentence.split(" "):
+                assert word == line_infos[index]["tok"]
+                new_line_infos.append(line_infos[index])
+                index += 1
+            # Sentence separator
+            new_line_infos.append(self.__sent_separator)
+        assert index == len(line_infos)
+        return new_line_infos
+        
     def parse(self, content:str, file: Optional[Path] = None, **kwargs) -> ArgumentationInfo:
         """
         Parse `content` returning DataFrames containing
@@ -145,7 +169,7 @@ class ConllParser(Parser):
         return argumentative_units, relations, non_argumentative_units
         
 
-    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], language="english", get_tags=False, exact_text=False, **kwargs) -> Dict[str, Union[AnnotatedRawTextInfo, Tuple[List[ConllTagInfo], str]]]:
+    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], language="english", get_tags=False, exact_text=True, split_sentences=True, **kwargs) -> Dict[str, Union[AnnotatedRawTextInfo, Tuple[List[ConllTagInfo], str]]]:
         """
         Creates a CONLL annotated corpus representing the received DataFrames. 
         
@@ -207,9 +231,6 @@ class ConllParser(Parser):
                         })
                         tags_info[-1]["full_tag"] = self.TAG_FORMAT.format_map(tags_info[-1]).replace("-none", "")
 
-                        to_write = self.ANNOTATION_FORMAT.format_map(tags_info[-1])
-                        to_write = to_write.replace("-none", "") # Remove unnecesary labels
-                        result += to_write
                 else:
                     # Out of proposition
                     for tok in prop_tokens:
@@ -222,14 +243,21 @@ class ConllParser(Parser):
                             "relation_distance": "none"
                         })
                         tags_info[-1]["full_tag"] = "O"
-
-                        to_write = self.ANNOTATION_FORMAT.format_map(tags_info[-1])
-                        to_write = to_write.replace("-none", "") # Remove unnecesary labels
-                        result += to_write
+            
+            if split_sentences:
+                tags_info = self.__split_sentences(tags_info, language)
             
             if get_tags:
                 results[file_path_str] = tags_info, text
             else:
+                # Create text
+                for tag_info in tags_info:
+                    if tag_info == self.__sent_separator:
+                        to_write = "\n"
+                    else:
+                        to_write = self.ANNOTATION_FORMAT.format_map(tag_info)
+                        to_write = to_write.replace("-none", "") # Remove unnecesary labels
+                    result += to_write
                 results[file_path_str] = result, text
         
         return results
@@ -244,12 +272,15 @@ class ConllParser(Parser):
         """
         text = ""
         for annotation in annotations:
-            match = self.annotation_regex.match(annotation)
-            assert match
-            annotation = match.groupdict()
-            to_write = self.ANNOTATION_FORMAT.format_map(annotation)
-            to_write = to_write.replace("-none", "") # Remove unnecesary labels
-            to_write = to_write.replace("-None", "") # Remove unnecesary labels
+            if annotation == "":
+                to_write = "\n"
+            else:
+                match = self.annotation_regex.match(annotation)
+                assert match
+                annotation = match.groupdict()
+                to_write = self.ANNOTATION_FORMAT.format_map(annotation)
+                to_write = to_write.replace("-none", "") # Remove unnecesary labels
+                to_write = to_write.replace("-None", "") # Remove unnecesary labels
             text += to_write
         return text
 

@@ -70,7 +70,7 @@ class FromCorpusTranslator(Translator):
                 except KeyError:
                     logging.warn(f"Sentence {source_sentence} couldn't be translated")
                     return ""
-            return transl[:-1] # Remove las space
+            return transl[:-1] # Remove the space
     
     def __initialize(self, source_language: str, target_language: str):
         """
