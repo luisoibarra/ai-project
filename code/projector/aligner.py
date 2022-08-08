@@ -237,7 +237,7 @@ class AwesomeAlignAligner(Aligner):
     
     def __init__(self, translator: Translator, awesome_align_path: Optional[Path] = None) -> None:
         super().__init__(translator)
-        self.awesome_align_path = awesome_align_path if awesome_align_path else Path(__file__, "..", "awesome-align", "awesome_align").resolve().relative_to(Path())
+        self.awesome_align_path = awesome_align_path if awesome_align_path else Path(__file__, "..", "awesome-align", "awesome_align").resolve()
     
     def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, **kwargs):
         kwargs = kwargs.copy()

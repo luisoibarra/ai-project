@@ -46,9 +46,16 @@ def make_alignemnts_pipeline(standard_corpus_dir: Path, sentence_alignment_dest_
     projector.project_dir(standard_corpus_dir, sentence_alignment_dest_dir, 
                           bidirectional_alignment_dest_dir, projection_dest_dir, **kwargs)
 
-def full_corpus_processing_pipeline(corpus_dir: Path, standard_corpus_dest_dir: Path, sentence_alignment_dest_dir: Path, 
-                           bidirectional_alignment_dest_dir: Path, projection_dest_dir: Path, corpus_parser: Parser,
-                           aligner: Aligner, projector: Projector, **kwargs):
+def full_corpus_processing_pipeline(
+    corpus_dir: Path, 
+    standard_corpus_dest_dir: Path, 
+    sentence_alignment_dest_dir: Path, 
+    bidirectional_alignment_dest_dir: Path, 
+    projection_dest_dir: Path, 
+    corpus_parser: Parser,
+    aligner: Aligner, 
+    projector: Projector, 
+    **kwargs):
     
     parse_corpus_pipeline(corpus_dir, standard_corpus_dest_dir, corpus_parser, **kwargs)
     
