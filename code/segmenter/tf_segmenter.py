@@ -1,7 +1,8 @@
 from pathlib import Path
+from typing import List
 import tensorflow as tf
 from tensorflow import keras
-from .segmenter import ArgumentSegmenter
+from .segmenter import ArgumentSegmenter, SplittedArgumentInfo
 
 
 class TensorflowArgumentSegmenter(ArgumentSegmenter):

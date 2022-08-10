@@ -145,7 +145,7 @@ class Parser:
         files: Maps file address or file name to its corpus representation and its full text.
         """
         if not dest_address.is_dir():
-            dest_address.mkdir()
+            dest_address.mkdir(exist_ok=True, parents=True)
             
         for filedir, (annotated_text, raw_text) in files.items():
             name = Path(filedir).name

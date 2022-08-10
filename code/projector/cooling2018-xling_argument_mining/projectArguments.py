@@ -83,7 +83,7 @@ def detect_bios(labels):
      indices.append((startindex,endindex,type))
   return indices
 
-def getTranslationIndices(indices,align):
+def getTranslationIndices(indices,align, tag):
   h = {}
   for y in align.split():
     a,b = list(map(int,y.split("-")))
@@ -113,15 +113,15 @@ def getTranslationIndices(indices,align):
        indexEndPrev = aligns[-1][1]
        indexStartPrev = aligns[-1][0]
        if indexStart<=indexEndPrev:
-        sys.stderr.write("DOESN'T WORK OUT %d %d\n"%(indexStart,indexEndPrev))
+        sys.stderr.write("%s: DOESN'T WORK OUT %d %d\n"%(tag, indexStart,indexEndPrev))
         if indexEnd<indexStartPrev: 
-          sys.stderr.write("Li'l non-monotonity\n")
+          sys.stderr.write("%s: Li'l non-monotonity\n"%(tag,))
           break 
         indexStart = indexEndPrev+1
       if indexStart<=indexEnd: break
     if indexStart>indexEnd:
         sys.stderr.write(str(aligns))
-        sys.stderr.write("ERROR SOMEWHERE: %d %d\n"%(indexStart,indexEnd)); 
+        sys.stderr.write("%s: ERROR SOMEWHERE: %d %d\n"%(tag, indexStart,indexEnd)); 
         #sys.exit(1)
         print(indices)
     aligns.append((indexStart,indexEnd,type))
@@ -153,7 +153,7 @@ def process(sentences,sentences_alignments,labels,fout,verbose=False):
     last = last+m
     #print(en_tokens,"\t",curLabels,"\t",de_tokens,"\t",indices)
     #print(align)
-    aligns = sorted( getTranslationIndices(indices,align) )
+    aligns = sorted( getTranslationIndices(indices,align, sentences[i]) )
     if verbose:
       print("ALIGNS",aligns,de)
     #if aligns!=[]:

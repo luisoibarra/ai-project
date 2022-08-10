@@ -3,7 +3,7 @@ from projector.translator import GoogleDeepTranslator, SelfTranslator, FromCorpu
 from corpus_parser.conll_parser import ConllParser
 from pipelines.corpus_pipelines import full_corpus_processing_pipeline, parse_corpus_pipeline
 from projector.projector import PendingSourceAnnotationProjector, SelfLanguageProjector, CrossLingualAnnotationProjector
-from projector.aligner import SelfLanguageAligner, FastAlignAligner
+from projector.aligner import AwesomeAlignAligner, SelfLanguageAligner, FastAlignAligner
 
 from corpus_parser.bret_parser import BretParser
 from pathlib import Path
@@ -36,7 +36,8 @@ def corpus_processing_example():
     sentence_aligner = SentenceAligner(translator)
 
     # aligner = SelfLanguageAligner()
-    aligner = FastAlignAligner()
+    # aligner = FastAlignAligner()
+    aligner = AwesomeAlignAligner()
 
     sentences_alignment_dir = Path(base_path, "sentence_alignment", dataset_name)
     bidirectional_alignment_dir = Path(base_path, "bidirectional_alignment", dataset_name)

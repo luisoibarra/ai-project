@@ -83,7 +83,7 @@ corpus_parser.add_argument("--target_language",
 
 # Pasing arguments
 args = corpus_parser.parse_args()
-print(args)
+
 # Get values
 parser = {
     "bret": BretParser(),

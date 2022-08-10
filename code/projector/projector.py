@@ -1,4 +1,5 @@
 
+from projector.sentence_aligner import SentenceAligner
 import string
 from projector.aligner import Aligner
 from corpus_parser.conll_parser import ConllParser
@@ -67,7 +68,7 @@ class Projector:
             
             for sentence_aligned, bidirectional_alignment in zip(sentences_aligned, bidirectional_alignments):
                 # Reading and parsing text
-                source_sentence, target_sentence = sentence_aligned.split(kwargs.get("separator", Aligner.SEPARATOR))
+                source_sentence, target_sentence = sentence_aligned.split(kwargs.get("separator", SentenceAligner.SEPARATOR))
                 source_sentence_tokens, target_sentence_tokens = source_sentence.split(" "), target_sentence.split(" ")
                 bidirectional_alignment_dict = self._parse_bidirectional_alignment(bidirectional_alignment)
                 
@@ -93,7 +94,7 @@ class Projector:
                 raise Exception(f"Missing annotations to be used in {annotated_file}: {annotation[current_annotation_offset:]}")
             
             if not export_dir.exists():
-                export_dir.mkdir()
+                export_dir.mkdir(exist_ok=True, parents=True)
             
             target_annotated_file = export_dir / (annotated_file.name + ".projected.conll")
             
@@ -359,14 +360,31 @@ class CrossLingualAnnotationProjector(Projector):
         sentences_aligned_files = [file for file in sentence_alignment_dir.iterdir() if file.name.endswith(".align")]
         bidirectional_alignments_files = [file for file in bidirectional_alignment_dir.iterdir() if file.name.endswith(".bidirectional")]
         
-        for annotated, aligned, bidirectional in zip(annotated_files, sentences_aligned_files, bidirectional_alignments_files):
+        if not export_dir.exists(): export_dir.mkdir(exist_ok=True, parents=True)
+        
+        for annotated_file in annotated_files:
+            
+            try:
+                sentence_aligned_file = [
+                    file for file in sentences_aligned_files 
+                        if annotated_file.name in file.name and file.name.endswith(".align")
+                ][0] # Find the associated .align file
+            except IndexError as e:
+                raise IndexError(f"No aligned sentence found for {annotated_file}. Expected like {annotated_file}.align")
+            try:
+                bidirectional_alignment_file = [
+                    file for file in bidirectional_alignments_files 
+                        if annotated_file.name in file.name and file.name.endswith(".bidirectional")
+                ][0] # Find the associated .bidirectional file
+            except IndexError as e:
+                raise IndexError(f"No bidirectional alignment found for {annotated_file}. Expected like {annotated_file}.bidirectional")
+            
             project_cmd = make_command(
                 'python3',
                 f'"{self.project_argument_algorithm}"',
-                f'"{annotated.resolve()}"',
-                f'"{aligned.resolve()}"',
-                f'"{bidirectional.resolve()}"',
-                f'"{(export_dir / (annotated.name + ".projected.conll")).resolve()}"'
+                f'"{annotated_file.resolve()}"',
+                f'"{sentence_aligned_file.resolve()}"',
+                f'"{bidirectional_alignment_file.resolve()}"',
+                f'"{(export_dir / (annotated_file.name + ".projected.conll")).resolve()}"'
             )
             run_bash_command(project_cmd)
-    

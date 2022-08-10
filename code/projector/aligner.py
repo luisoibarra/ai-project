@@ -17,7 +17,7 @@ class Aligner:
         align_dest: Destination directory for the bidirectional alignments
         """
         
-        if not align_dest.exists(): align_dest.mkdir()
+        if not align_dest.exists(): align_dest.mkdir(exist_ok=True, parents=True)
         
         for file in sentence_alignment_dir.iterdir():
             if file.is_file() and file.name.endswith(".align"):
