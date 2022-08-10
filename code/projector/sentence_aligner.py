@@ -86,7 +86,7 @@ class SentenceAligner:
             for i in range(self.max_worker):
                 futures.append(exe.submit(batch_work, i))
         wait(futures)
-        exceptions = [future for future in futures if future.exception()]
+        exceptions = [future.exception() for future in futures if future.exception()]
         
         if exceptions:
             raise Exception(exceptions)

@@ -50,7 +50,7 @@ class Parser:
                 futures.append(exe.submit(read, i))
                 # read(i)
         wait(futures)
-        exceptions = [future for future in futures if future.exception()]
+        exceptions = [future.exception() for future in futures if future.exception()]
         
         if exceptions:
             raise Exception(exceptions)
