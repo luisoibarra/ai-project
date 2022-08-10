@@ -1,5 +1,6 @@
+from concurrent.futures import Future, ThreadPoolExecutor, wait
 from utils.console_utils import make_command, run_bash_command
-from typing import Optional
+from typing import List, Optional
 
 from pathlib import Path
 
@@ -7,6 +8,9 @@ class Aligner:
     """
     Abstract class that makes the bidirectional alignment.
     """
+    
+    def __init__(self) -> None:
+        self.max_worker = 20
     
     def bidirectional_align_dir(self, sentence_alignment_dir: Path, align_dest: Path, **kwargs):
         """
@@ -19,10 +23,25 @@ class Aligner:
         
         if not align_dest.exists(): align_dest.mkdir(exist_ok=True, parents=True)
         
-        for file in sentence_alignment_dir.iterdir():
-            if file.is_file() and file.name.endswith(".align"):
-                dest_file = align_dest / (file.name + ".bidirectional")
-                self.do_bidirectional_align_file(file, dest_file, **kwargs)
+        sentences_aligned = [x for x in sentence_alignment_dir.iterdir()]
+
+        batch = len(sentences_aligned)//self.max_worker + 1
+        
+        def batch_work(slice: int) -> str:
+            for file in sentences_aligned[batch*slice:batch*(slice+1)]:
+                if file.is_file() and file.name.endswith(".align"):
+                    dest_file = align_dest / (file.name + ".bidirectional")
+                    self.do_bidirectional_align_file(file, dest_file, **kwargs)
+        
+        futures: List[Future] = []
+        with ThreadPoolExecutor(max_workers=self.max_worker) as exe:
+            for i in range(self.max_worker):
+                futures.append(exe.submit(batch_work, i))
+        wait(futures)
+        exceptions = [future for future in futures if future.exception()]
+        
+        if exceptions:
+            raise Exception(exceptions)
 
     def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, **kwargs):
         """

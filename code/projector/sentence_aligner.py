@@ -1,3 +1,4 @@
+from concurrent.futures import Future, ThreadPoolExecutor, wait
 import logging
 from projector.translator import Translator
 from typing import Callable, Dict, List, Optional, Tuple
@@ -16,6 +17,7 @@ class SentenceAligner:
         translator: Class in charge of sentence translation
         """
         self.translator = translator
+        self.max_worker = 20
 
     def sentence_alignment_dir(self, corpus_address:Path, sentence_dest:Path, sentences_splitted=True, **kwargs):
         """
@@ -30,17 +32,19 @@ class SentenceAligner:
         parser = ConllParser()
         df_representations = parser.parse_dir(corpus_address) # CONVERT TO MIDDLE TRANSOFMATION
         
-        if not sentence_dest.exists(): sentence_dest.mkdir()
+        if not sentence_dest.exists(): sentence_dest.mkdir(exist_ok=True, parents=True)
         
         bio_parser = ConllParser()
         tags = bio_parser.from_dataframes(df_representations, get_tags=True, **kwargs)
         
-        for key, (annotated_tags_info, text) in tags.items():
-            if sentences_splitted:
-                text = " ".join(tok["tok"] for tok in annotated_tags_info)
-            sentence_sentence_text = self.make_sentence_sentence_text(text, sentences_splitted=sentences_splitted, **kwargs)
-            dest_file = sentence_dest / (Path(key).name + ".align")
-            dest_file.write_text(sentence_sentence_text)
+        # Activating translator cache with context
+        with self.translator:
+            for key, (annotated_tags_info, text) in tags.items():
+                if sentences_splitted:
+                    text = " ".join(tok["tok"] for tok in annotated_tags_info)
+                sentence_sentence_text = self.make_sentence_sentence_text(text, sentences_splitted=sentences_splitted, **kwargs)
+                dest_file = sentence_dest / (Path(key).name + ".align")
+                dest_file.write_text(sentence_sentence_text)
 
     def make_sentence_sentence_text(self, text: str, sentences_splitted=True, word_tokenizer: Callable[[str,],List[str]]=word_tokenize, 
                                     sent_tokenizer: Callable[[str,],List[str]]=sent_tokenize, 
@@ -64,16 +68,27 @@ class SentenceAligner:
         """
         
         sentences = sent_tokenizer(text, language=source_language) if not sentences_splitted else text.splitlines()
-        result = ""
-        with self.translator as translator:
-            for sentence in sentences:
+        
+        batch = len(sentences)//self.max_worker + 1
+        def batch_work(slice: int) -> str:
+            result = []
+            for sentence in sentences[batch*slice:batch*(slice+1)]:
                 # Result is the sentence's tokens separated by spaces
                 source_sentence_with_spaces = " ".join(word_tokenizer(sentence, language=source_language)).strip()
-                target_sentence = translator.translate(source_sentence_with_spaces, source_language=source_language, target_language=target_language)
+                target_sentence = self.translator.translate(source_sentence_with_spaces, source_language=source_language, target_language=target_language)
                 target_sentence_with_spaces = " ".join(word_tokenizer(target_sentence, language=target_language)).strip()
                 
-                result += source_sentence_with_spaces + \
-                        separator + \
-                        target_sentence_with_spaces + \
-                        "\n"
-        return result
+                result.append((source_sentence_with_spaces, target_sentence_with_spaces))
+            return "\n".join(f"{source}{self.SEPARATOR}{target}" for source, target in result)
+        
+        futures: List[Future] = []
+        with ThreadPoolExecutor(max_workers=self.max_worker) as exe:
+            for i in range(self.max_worker):
+                futures.append(exe.submit(batch_work, i))
+        wait(futures)
+        exceptions = [future for future in futures if future.exception()]
+        
+        if exceptions:
+            raise Exception(exceptions)
+
+        return "\n".join(future.result() for future in futures if future.result())

@@ -1,4 +1,5 @@
 
+from concurrent.futures import Future, ThreadPoolExecutor, wait
 from projector.sentence_aligner import SentenceAligner
 import string
 from projector.aligner import Aligner
@@ -13,6 +14,9 @@ class Projector:
     """
     Abstract class for projection algorithm
     """
+    
+    def __init__(self) -> None:
+        self.max_worker = 20
     
     def project_dir(self, annotation_dir: Path, sentence_alignment_dir: Path, bidirectional_alignment_dir: Path,
                     export_dir: Path, split_senteneces=True, **kwargs):
@@ -31,76 +35,88 @@ class Projector:
         sentences_aligned_files = [file for file in sentence_alignment_dir.iterdir() if file.name.endswith(".align")]
         bidirectional_alignments_files = [file for file in bidirectional_alignment_dir.iterdir() if file.name.endswith(".bidirectional")]
         
+        if not export_dir.exists(): export_dir.mkdir(exist_ok=True, parents=True)
+        
         parser = ConllParser()
         
-        for annotated_file in annotated_files:
-            
-            try:
-                sentence_aligned_file = [
-                    file for file in sentences_aligned_files 
-                        if annotated_file.name in file.name and file.name.endswith(".align")
-                ][0] # Find the associated .align file
-            except IndexError as e:
-                raise IndexError(f"No aligned sentence found for {annotated_file}. Expected like {annotated_file}.align")
-            try:
-                bidirectional_alignment_file = [
-                    file for file in bidirectional_alignments_files 
-                        if annotated_file.name in file.name and file.name.endswith(".bidirectional")
-                ][0] # Find the associated .bidirectional file
-            except IndexError as e:
-                raise IndexError(f"No bidirectional alignment found for {annotated_file}. Expected like {annotated_file}.bidirectional")
-            
-            # Reading files. BIO annotations, Sentence alignment, Bidirectional alignment
-            annotation_df = parser.parse_file(annotated_file)
-            key = str(annotated_file)
-            annotation = parser.from_dataframes({key : annotation_df }, get_tags=True, **kwargs)[key][0]
-            annotation = [x for x in annotation if x["bio_tag"]]
-            sentences_aligned = sentence_aligned_file.read_text().splitlines()
-            bidirectional_alignments = bidirectional_alignment_file.read_text().splitlines()
-            
-            # Checking that the sentence amount is the same
-            if len(sentences_aligned) != len(bidirectional_alignments):
-                raise Exception(f"Sentences aligned and bidirectional aligments amount doesn't match for {annotated_file}")
-            
-            file_target_projection = []
-            
-            current_annotation_offset = 0
-            
-            for sentence_aligned, bidirectional_alignment in zip(sentences_aligned, bidirectional_alignments):
-                # Reading and parsing text
-                source_sentence, target_sentence = sentence_aligned.split(kwargs.get("separator", SentenceAligner.SEPARATOR))
-                source_sentence_tokens, target_sentence_tokens = source_sentence.split(" "), target_sentence.split(" ")
-                bidirectional_alignment_dict = self._parse_bidirectional_alignment(bidirectional_alignment)
+        batch = len(annotated_files)//self.max_worker + 1
+        
+        def batch_work(slice: int) -> str:
+            for annotated_file in annotated_files[batch*slice:batch*(slice+1)]:
+                try:
+                    sentence_aligned_file = [
+                        file for file in sentences_aligned_files 
+                            if annotated_file.name in file.name and file.name.endswith(".align")
+                    ][0] # Find the associated .align file
+                except IndexError as e:
+                    raise IndexError(f"No aligned sentence found for {annotated_file}. Expected like {annotated_file}.align")
+                try:
+                    bidirectional_alignment_file = [
+                        file for file in bidirectional_alignments_files 
+                            if annotated_file.name in file.name and file.name.endswith(".bidirectional")
+                    ][0] # Find the associated .bidirectional file
+                except IndexError as e:
+                    raise IndexError(f"No bidirectional alignment found for {annotated_file}. Expected like {annotated_file}.bidirectional")
                 
-                # Updating offset
-                next_annotation_offset = current_annotation_offset + len(source_sentence_tokens)
+                # Reading files. BIO annotations, Sentence alignment, Bidirectional alignment
+                annotation_df = parser.parse_file(annotated_file)
+                key = str(annotated_file)
+                annotation = parser.from_dataframes({key : annotation_df }, get_tags=True, **kwargs)[key][0]
+                annotation = [x for x in annotation if x["bio_tag"]]
+                sentences_aligned = sentence_aligned_file.read_text().splitlines()
+                bidirectional_alignments = bidirectional_alignment_file.read_text().splitlines()
                 
-                current_annotations = annotation[current_annotation_offset:next_annotation_offset]
+                # Checking that the sentence amount is the same
+                if len(sentences_aligned) != len(bidirectional_alignments):
+                    raise Exception(f"Sentences aligned and bidirectional aligments amount doesn't match for {annotated_file}")
                 
-                # Sanity check. 
-                assert len(source_sentence_tokens) == len(current_annotations), "Tokens and tags amounts aren't equal"
-                assert tuple(source_sentence_tokens) == tuple(tag_info["tok"] for tag_info in current_annotations), "Tokens and tags lexeme aren't equal"
+                file_target_projection = []
+                
+                current_annotation_offset = 0
+                
+                for sentence_aligned, bidirectional_alignment in zip(sentences_aligned, bidirectional_alignments):
+                    # Reading and parsing text
+                    source_sentence, target_sentence = sentence_aligned.split(kwargs.get("separator", SentenceAligner.SEPARATOR))
+                    source_sentence_tokens, target_sentence_tokens = source_sentence.split(" "), target_sentence.split(" ")
+                    bidirectional_alignment_dict = self._parse_bidirectional_alignment(bidirectional_alignment)
+                    
+                    # Updating offset
+                    next_annotation_offset = current_annotation_offset + len(source_sentence_tokens)
+                    
+                    current_annotations = annotation[current_annotation_offset:next_annotation_offset]
+                    
+                    # Sanity check. 
+                    assert len(source_sentence_tokens) == len(current_annotations), "Tokens and tags amounts aren't equal"
+                    assert tuple(source_sentence_tokens) == tuple(tag_info["tok"] for tag_info in current_annotations), "Tokens and tags lexeme aren't equal"
 
+                    
+                    target_projection = self.project_sentence(source_sentence_tokens, target_sentence_tokens,
+                                                            bidirectional_alignment_dict, current_annotations)
+                    if split_senteneces:
+                        target_projection.append("")
+                    file_target_projection.extend(target_projection)
+                    
+                    current_annotation_offset = next_annotation_offset
                 
-                target_projection = self.project_sentence(source_sentence_tokens, target_sentence_tokens,
-                                                          bidirectional_alignment_dict, current_annotations)
-                if split_senteneces:
-                    target_projection.append("")
-                file_target_projection.extend(target_projection)
+                if current_annotation_offset != len(annotation):
+                    raise Exception(f"Missing annotations to be used in {annotated_file}: {annotation[current_annotation_offset:]}")
                 
-                current_annotation_offset = next_annotation_offset
-            
-            if current_annotation_offset != len(annotation):
-                raise Exception(f"Missing annotations to be used in {annotated_file}: {annotation[current_annotation_offset:]}")
-            
-            if not export_dir.exists():
-                export_dir.mkdir(exist_ok=True, parents=True)
-            
-            target_annotated_file = export_dir / (annotated_file.name + ".projected.conll")
-            
-            final_projection_text = parser.get_conll_text_from_annotation(file_target_projection)
-            
-            target_annotated_file.write_text(final_projection_text)
+                target_annotated_file = export_dir / (annotated_file.name + ".projected.conll")
+                
+                final_projection_text = parser.get_conll_text_from_annotation(file_target_projection)
+                
+                target_annotated_file.write_text(final_projection_text)
+        
+        futures: List[Future] = []
+        with ThreadPoolExecutor(max_workers=self.max_worker) as exe:
+            for i in range(self.max_worker):
+                futures.append(exe.submit(batch_work, i))
+        wait(futures)
+        exceptions = [future for future in futures if future.exception()]
+        
+        if exceptions:
+            raise Exception(exceptions)
+
             
     def project_sentence(self, sentence_source_tokens:List[str], sentence_target_tokens:List[str],
                          alignment:Dict[int, List[int]], tags_info: List[Dict[str,Union[str,int]]]) -> List[str]:
@@ -361,30 +377,42 @@ class CrossLingualAnnotationProjector(Projector):
         bidirectional_alignments_files = [file for file in bidirectional_alignment_dir.iterdir() if file.name.endswith(".bidirectional")]
         
         if not export_dir.exists(): export_dir.mkdir(exist_ok=True, parents=True)
+    
+        batch = len(annotated_files)//self.max_worker + 1
         
-        for annotated_file in annotated_files:
-            
-            try:
-                sentence_aligned_file = [
-                    file for file in sentences_aligned_files 
-                        if annotated_file.name in file.name and file.name.endswith(".align")
-                ][0] # Find the associated .align file
-            except IndexError as e:
-                raise IndexError(f"No aligned sentence found for {annotated_file}. Expected like {annotated_file}.align")
-            try:
-                bidirectional_alignment_file = [
-                    file for file in bidirectional_alignments_files 
-                        if annotated_file.name in file.name and file.name.endswith(".bidirectional")
-                ][0] # Find the associated .bidirectional file
-            except IndexError as e:
-                raise IndexError(f"No bidirectional alignment found for {annotated_file}. Expected like {annotated_file}.bidirectional")
-            
-            project_cmd = make_command(
-                'python3',
-                f'"{self.project_argument_algorithm}"',
-                f'"{annotated_file.resolve()}"',
-                f'"{sentence_aligned_file.resolve()}"',
-                f'"{bidirectional_alignment_file.resolve()}"',
-                f'"{(export_dir / (annotated_file.name + ".projected.conll")).resolve()}"'
-            )
-            run_bash_command(project_cmd)
+        def batch_work(slice: int) -> str:
+            for annotated_file in annotated_files[batch*slice:batch*(slice+1)]:
+                try:
+                    sentence_aligned_file = [
+                        file for file in sentences_aligned_files 
+                            if annotated_file.name in file.name and file.name.endswith(".align")
+                    ][0] # Find the associated .align file
+                except IndexError as e:
+                    raise IndexError(f"No aligned sentence found for {annotated_file}. Expected like {annotated_file}.align")
+                try:
+                    bidirectional_alignment_file = [
+                        file for file in bidirectional_alignments_files 
+                            if annotated_file.name in file.name and file.name.endswith(".bidirectional")
+                    ][0] # Find the associated .bidirectional file
+                except IndexError as e:
+                    raise IndexError(f"No bidirectional alignment found for {annotated_file}. Expected like {annotated_file}.bidirectional")
+                
+                project_cmd = make_command(
+                    'python3',
+                    f'"{self.project_argument_algorithm}"',
+                    f'"{annotated_file.resolve()}"',
+                    f'"{sentence_aligned_file.resolve()}"',
+                    f'"{bidirectional_alignment_file.resolve()}"',
+                    f'"{(export_dir / (annotated_file.name + ".projected.conll")).resolve()}"'
+                )
+                run_bash_command(project_cmd)
+        
+        futures: List[Future] = []
+        with ThreadPoolExecutor(max_workers=self.max_worker) as exe:
+            for i in range(self.max_worker):
+                futures.append(exe.submit(batch_work, i))
+        wait(futures)
+        exceptions = [future for future in futures if future.exception()]
+        
+        if exceptions:
+            raise Exception(exceptions)
