@@ -1,54 +1,14 @@
 from utils.console_utils import make_command, run_bash_command
 from projector.translator import Translator
-from corpus_parser.conll_parser import ConllParser
-from typing import Callable, List, Dict, Optional, Tuple, Union
-from nltk import sent_tokenize, word_tokenize
-import logging as log
+from typing import Optional
 
 from pathlib import Path
 
 class Aligner:
     """
-    Abstract class that makes the sentence to sentence alignment process and the bidirectional alignment.
+    Abstract class that makes the bidirectional alignment.
     """
     
-    SEPARATOR = " ||| "
-    
-    def __init__(self, translator: Translator) -> None:
-        """
-        Initialize aligner
-        
-        translator: Class in charge of sentence translation
-        """
-        self.translator = translator
-    
-    def sentence_alignment_dir(self, corpus_address:Path, sentence_dest:Path, sentences_splitted=True, **kwargs):
-        """
-        Read all cropus files from `corpus_address` and write the respective sentences 
-        aligned in `sentence_dest`. The written files will have .align suffix.
-        
-        corpus_address: Corpus address
-        corpus_dest: Path to save the processed corpus
-        sentence_dest: Where to save the sentence alignment
-        sentences_splitted: If in the conll file the sentence are splitted by an emtpy line 
-        """
-        parser = ConllParser()
-        df_representations = parser.parse_dir(corpus_address) # CONVERT TO MIDDLE TRANSOFMATION
-        
-        if not sentence_dest.exists(): sentence_dest.mkdir()
-        
-        bio_parser = ConllParser()
-        tags = bio_parser.from_dataframes(df_representations, get_tags=True, **kwargs)
-        
-        for key, (annotated_tags_info, text) in tags.items():
-            if sentences_splitted:
-                text = " ".join(tok["tok"] for tok in annotated_tags_info)
-            sentence_sentence_text = self.make_sentence_sentence_text(text, sentences_splitted=sentences_splitted, **kwargs)
-            dest_file = sentence_dest / (Path(key).name + ".align")
-            dest_file.write_text(sentence_sentence_text)
-            # for sentence_sentence in sentence_sentence_text.split("\n"):
-            #     source, target = sentence_sentence.split(kwargs.get("separator", self.SEPARATOR))
-
     def bidirectional_align_dir(self, sentence_alignment_dir: Path, align_dest: Path, **kwargs):
         """
         Read the `.align` files in `sentence_alignment_dir` and write in `align_dest` the
@@ -65,53 +25,6 @@ class Aligner:
                 dest_file = align_dest / (file.name + ".bidirectional")
                 self.do_bidirectional_align_file(file, dest_file, **kwargs)
 
-    def make_sentence_sentence_text(self, text: str, sentences_splitted=True, word_tokenizer: Callable[[str,],List[str]]=word_tokenize, 
-                                    sent_tokenizer: Callable[[str,],List[str]]=sent_tokenize, 
-              source_language: str="english", target_language: str="spanish", separator: str=SEPARATOR) -> str:
-        """
-        Split the given `text` sentence by sentence using the given `sent_tokenizer`. The
-        split is made by placing in each line the sentence in `source_language`
-        followed by `separator` and then the sentence in `target_language`  
-        
-        text: Text to be splitted
-        word_tokenizer: Function that receives a text and a language and returns a list with
-        the tokens present in text
-        sent_tokenizer: Function that receives a text and a language and returns a list with
-        the sentences present in text
-        source_language: text's language
-        target_language: Language to be translated
-        separator: Text separating the sentences in source language and target language
-        sentences_splitted: If the text is already splitted by sentences separated with newlines
-        
-        returns: The aligned text, tokens are separated by spaces
-        """
-        
-        sentences = sent_tokenizer(text, language=source_language) if not sentences_splitted else text.splitlines()
-        result = ""
-        for sentence in sentences:
-            # Result is the sentence's tokens separated by spaces
-            source_sentence_with_spaces = " ".join(word_tokenizer(sentence, language=source_language)).strip()
-            target_sentence = self.translate(source_sentence_with_spaces, source_language=source_language, target_language=target_language)
-            target_sentence_with_spaces = " ".join(word_tokenizer(target_sentence, language=target_language)).strip()
-            
-            result += source_sentence_with_spaces + \
-                      separator + \
-                      target_sentence_with_spaces + \
-                      "\n"
-        return result
-    
-    def translate(self, sentence: str, source_language="english", target_language="spanish") -> str:
-        """
-        Translate given `sentence` in `source_language` into `target_language`
-        
-        sentence: Sentence to translate
-        source_language: Language of given sentence
-        target_language: Language to translate the sentence
-        
-        returns: The translated sentence
-        """
-        return self.translator.translate(sentence, source_language, target_language)
-    
     def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, **kwargs):
         """
         Get the alignment from the text in `sentence_align_dir`. The alignment will match the line with sentence,
@@ -145,8 +58,8 @@ class FastAlignAligner(Aligner):
     Aligner using the fast_align algorithm. 
     """
     
-    def __init__(self, translator: Translator, fast_align_path: Optional[Path] = None) -> None:
-        super().__init__(translator)
+    def __init__(self, fast_align_path: Optional[Path] = None) -> None:
+        super().__init__()
         self.fast_align_path = fast_align_path if fast_align_path else Path(__file__, "..", "fast_align", "build", "fast_align").resolve()
     
     def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, atools_opt: bool=True, **kwargs):
@@ -235,8 +148,8 @@ class AwesomeAlignAligner(Aligner):
         "batch_size"
     }
     
-    def __init__(self, translator: Translator, awesome_align_path: Optional[Path] = None) -> None:
-        super().__init__(translator)
+    def __init__(self, awesome_align_path: Optional[Path] = None) -> None:
+        super().__init__()
         self.awesome_align_path = awesome_align_path if awesome_align_path else Path(__file__, "..", "awesome-align", "awesome_align").resolve()
     
     def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, **kwargs):
@@ -254,5 +167,4 @@ class AwesomeAlignAligner(Aligner):
             *[f"--{key}={value}" for key,value in kwargs.items() if key in self.SUPPORTED_KEYS]
         )
         run_bash_command(awesome_align_cmd)
-        
         

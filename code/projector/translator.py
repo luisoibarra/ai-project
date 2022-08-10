@@ -1,11 +1,11 @@
-
-
 import logging
 import re
-from typing import Dict, Tuple
+from typing import Callable, Dict, Optional, Tuple
 from corpus_parser.conll_parser import ConllParser
 from pathlib import Path
 from nltk import sent_tokenize
+from deep_translator import GoogleTranslator
+import json
 
 class Translator:
 
@@ -21,6 +21,11 @@ class Translator:
         """
         raise NotImplementedError()
 
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
 
 class SelfTranslator(Translator):
     
@@ -107,4 +112,102 @@ class FromCorpusTranslator(Translator):
 
             for source_bigr, target_bigr in zip(source_bigrs, target_bigrs):
                 self.__translation_dict[source_language, target_language, " ".join(source_bigr)] = " ".join(target_bigr)
-                
+
+
+class BaseDeepTranslator(Translator):
+    """
+    Translator based on https://github.com/nidhaloff/deep-translator.
+    """
+    
+    def __init__(self, cache_file: Optional[Path]=None) -> None:
+        super().__init__()
+        self.cache_file = cache_file
+        if not cache_file:
+            self.cache_file = Path(__file__, "..", "..", "data", "translation", "translation_cache.json").resolve()
+
+        # target_sentence = self.cache_dict[source_language][source_sentence][target_language]
+        self.cache_dict: Dict[str, Dict[str, Dict[str, str]]] = {}
+    
+    def __enter__(self):
+        # Setup cache dictionary
+        if not self.cache_file.exists():
+            self.cache_file.touch()
+            with self.cache_file.open("w") as file:
+                json.dump({}, file)
+        try:
+            with self.cache_file.open("r") as file:
+                self.cache_dict = json.load(file)
+        except json.JSONDecodeError:
+            with self.cache_file.open("w") as file:
+                json.dump({}, file)
+            with self.cache_file.open("r") as file:
+                self.cache_dict = json.load(file)
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Save cache
+        self.__save_cache_into_file()
+
+    
+    def __save_cache_into_file(self):
+        try:
+            if self.cache_file and self.cache_dict:
+                with self.cache_file.open("w") as file:
+                    json.dump(self.cache_dict, file)
+        except Exception as e:
+            logging.warning(f"Error saving the translation cache: {e}")
+    
+    def __check_cache(self, source_sentence: str, source_language:str, target_language: str) -> Optional[str]:
+        """
+        Return the value for source_sentence if exist else return None
+        """
+        if self.cache_dict is None:
+            return None
+        current = self.cache_dict
+        for key in [source_language, source_sentence, target_language]:
+            current = current.get(key)
+            if current is None:
+                return None
+        return current
+
+    def __save_cache(self, source_sentence: str, target_sentence: str, source_language:str, target_language: str):
+        """
+        Save the translated value for source_sentence with given language
+        """
+        if self.cache_dict is None:
+            return
+        current = self.cache_dict
+        for key in [source_language, source_sentence]:
+            now = current.get(key, {})
+            if len(now) == 0:
+                current[key] = now
+            current = now
+        current[target_language] = target_sentence
+    
+    def get_translator(self, source_language:str, target_language: str):
+        """
+        Returns the translator to be used
+        """
+        raise NotImplementedError()
+    
+    def translate(self, source_sentence: str, source_language:str, target_language: str) -> str:
+        cached_translated = self.__check_cache(source_sentence, source_language, target_language)
+        if cached_translated is not None:
+            return cached_translated
+        translator = self.get_translator(source_language, target_language)
+        target_sentence = translator.translate(source_sentence)
+        self.__save_cache(source_sentence, target_sentence, source_language, target_language)
+        return target_sentence
+
+class GoogleDeepTranslator(BaseDeepTranslator):
+    """
+    Translator based on https://github.com/nidhaloff/deep-translator
+    
+    Uses the GoogleTranslator
+    """
+    
+    def get_translator(self, source_language:str, target_language: str):
+        """
+        Returns the translator to be used
+        """
+        return GoogleTranslator(source=source_language, target=target_language)

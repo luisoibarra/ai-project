@@ -1,4 +1,5 @@
-from projector.translator import SelfTranslator, FromCorpusTranslator
+from projector.sentence_aligner import SentenceAligner
+from projector.translator import GoogleDeepTranslator, SelfTranslator, FromCorpusTranslator
 from corpus_parser.conll_parser import ConllParser
 from pipelines.corpus_pipelines import full_corpus_processing_pipeline, parse_corpus_pipeline
 from projector.projector import PendingSourceAnnotationProjector, SelfLanguageProjector, CrossLingualAnnotationProjector
@@ -24,15 +25,18 @@ def corpus_processing_example():
     projection_dir = Path(base_path, "projection", dataset_name)
     
     # translator = SelfTranslator()
-    translator = FromCorpusTranslator(
-        Path(base_path, "translation", dataset_name, "testing_en"),
-        Path(base_path, "translation", dataset_name, "testing_es"),
-        "english",
-        "spanish"
-    )
+    # translator = FromCorpusTranslator(
+    #     Path(base_path, "translation", dataset_name, "testing_en"),
+    #     Path(base_path, "translation", dataset_name, "testing_es"),
+    #     "english",
+    #     "spanish"
+    # )
+    translator = GoogleDeepTranslator()
 
-    # aligner = SelfLanguageAligner(translator)
-    aligner = FastAlignAligner(translator)
+    sentence_aligner = SentenceAligner(translator)
+
+    # aligner = SelfLanguageAligner()
+    aligner = FastAlignAligner()
 
     sentences_alignment_dir = Path(base_path, "sentence_alignment", dataset_name)
     bidirectional_alignment_dir = Path(base_path, "bidirectional_alignment", dataset_name)
@@ -47,7 +51,8 @@ def corpus_processing_example():
         sentences_alignment_dir, 
         bidirectional_alignment_dir, 
         projection_dir, 
-        corpus_parser, 
+        corpus_parser,
+        sentence_aligner,
         aligner, 
         projector)
 

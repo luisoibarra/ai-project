@@ -1,7 +1,8 @@
 import argparse
+from projector.sentence_aligner import SentenceAligner
 from projector.aligner import AwesomeAlignAligner, FastAlignAligner
 from pipelines.corpus_pipelines import full_corpus_processing_pipeline
-from projector.translator import FromCorpusTranslator
+from projector.translator import GoogleDeepTranslator, FromCorpusTranslator
 from projector.projector import CrossLingualAnnotationProjector
 from corpus_parser.bret_parser import BretParser
 from corpus_parser.conll_parser import ConllParser
@@ -52,7 +53,7 @@ corpus_parser.add_argument("--aligner",
                     # const=aligners[0],
                     default=aligners[0],
                     choices=aligners)
-translators = ["corpus"]
+translators = ["google", "corpus"]
 corpus_parser.add_argument("--translator",
                     help="Select the translation process",
                     type=str,
@@ -94,15 +95,19 @@ projector = {
 }[args.projector]
 
 translator = {
-    "corpus": FromCorpusTranslator(args.source_language_sentences, 
-                                   args.target_language_sentences, 
-                                   args.source_language, 
-                                   args.target_language),
-}[args.translator]
+    "google": GoogleDeepTranslator(),
+}
+if args.source_language_sentences and args.target_language_sentences:
+    translator["corpus"] = FromCorpusTranslator(
+                                args.source_language_sentences, 
+                                args.target_language_sentences, 
+                                args.source_language, 
+                                args.target_language),
+translator = translator[args.translator]
 
 aligner = {
-    "fast_align": FastAlignAligner(translator), 
-    "awesome_align": AwesomeAlignAligner(translator), 
+    "fast_align": FastAlignAligner(), 
+    "awesome_align": AwesomeAlignAligner(), 
 }[args.aligner]
 
 full_corpus_processing_pipeline(
@@ -112,6 +117,7 @@ full_corpus_processing_pipeline(
     args.bidirectional_path,
     args.projection_path,
     parser,
+    SentenceAligner(translator),
     aligner,
     projector,
     source_language = args.source_language,
