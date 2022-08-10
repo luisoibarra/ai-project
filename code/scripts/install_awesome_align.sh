@@ -12,4 +12,6 @@ python setup.py install
 echo "Completed"
 
 echo "Downloading corpus"
-awesome-align --model_name_or_path bert-base-multilingual-cased --data_file $(realpath ./../data/sentence_alignment/testing/essay001.ann.conll.align) --output_file $(realpath ./../data/bidirectional_alignment/testing/essay001.ann.conll.align.bidirectional) --batch_size 32 --extraction softmax
+
+cd ./../../data
+awesome-align --model_name_or_path bert-base-multilingual-cased --data_file ./sentence_alignment/testing/essay001.ann.conll.align --output_file ./bidirectional_alignment/testing/essay001.ann.conll.align.bidirectional --batch_size 32 --extraction softmax
