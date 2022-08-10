@@ -156,14 +156,14 @@ class AwesomeAlignAligner(Aligner):
         kwargs = kwargs.copy()
         
         kwargs.setdefault("model_name_or_path", "bert-base-multilingual-cased")
-        kwargs.setdefault("output_file", str(alignment_dest))
-        kwargs.setdefault("data_file", str(sentence_align_dir))
+        kwargs.setdefault("output_file", f'"{str(alignment_dest)}"')
+        kwargs.setdefault("data_file", f'"{str(sentence_align_dir)}"')
         kwargs.setdefault("batch_size", 32)
         kwargs.setdefault("extraction", "softmax")
         
         awesome_align_cmd = make_command(
             'python3',
-            f'{self.awesome_align_path / "run_align.py"}',
+            f'"{self.awesome_align_path / "run_align.py"}"',
             *[f"--{key}={value}" for key,value in kwargs.items() if key in self.SUPPORTED_KEYS]
         )
         run_bash_command(awesome_align_cmd)
