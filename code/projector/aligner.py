@@ -1,5 +1,4 @@
 from utils.console_utils import make_command, run_bash_command
-from projector.translator import Translator
 from typing import Optional
 
 from pathlib import Path
@@ -142,8 +141,8 @@ class AwesomeAlignAligner(Aligner):
 
     SUPPORTED_KEYS = {
         "model_name_or_path",
-        "data_file"
-        "output_files",
+        "data_file",
+        "output_file",
         "extraction",
         "batch_size"
     }
