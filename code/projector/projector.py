@@ -1,8 +1,6 @@
-
 from concurrent.futures import Future, ThreadPoolExecutor, wait
-from projector.sentence_aligner import SentenceAligner
+from sentence_aligner.sentence_aligner import SentenceAligner
 import string
-from projector.aligner import Aligner
 from corpus_parser.conll_parser import ConllParser
 from typing import Dict, List, Tuple, Union
 import logging as log

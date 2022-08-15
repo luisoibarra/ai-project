@@ -1,123 +1,61 @@
 import argparse
-from projector.sentence_aligner import SentenceAligner
-from projector.aligner import AwesomeAlignAligner, FastAlignAligner
+from utils.argparser_utils import update_parser
 from pipelines.corpus_pipelines import full_corpus_processing_pipeline
-from projector.translator import GoogleDeepTranslator, FromCorpusTranslator
-from projector.projector import CrossLingualAnnotationProjector
-from corpus_parser.bret_parser import BretParser
-from corpus_parser.conll_parser import ConllParser
-from corpus_parser.parser import Parser
+from aligner.main import create_from_args as create_from_args_aligner
+from aligner.main import choice_args as choice_args_alginer
+from aligner.main import optional_args as optional_args_alginer
+from aligner.main import positional_args as positional_args_alginer
+from corpus_parser.main import create_from_args as create_from_args_corpus_parser
+from corpus_parser.main import choice_args as choice_args_corpus_parser
+from corpus_parser.main import optional_args as optional_args_corpus_parser
+from corpus_parser.main import positional_args as positional_args_corpus_parser
+from projector.main import create_from_args as create_from_args_projector
+from projector.main import choice_args as choice_args_projector
+from projector.main import optional_args as optional_args_projector
+from projector.main import positional_args as positional_args_projector
+from sentence_aligner.main import create_from_args as create_from_args_sentence_aligner
+from sentence_aligner.main import choice_args as choice_args_sentence_aligner
+from sentence_aligner.main import optional_args as optional_args_sentence_aligner
+from sentence_aligner.main import positional_args as positional_args_sentence_aligner
+
 from pathlib import Path
 
-corpus_parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser()
 
-# Paths
-corpus_parser.add_argument("source_path", 
-                    help="Path that contains the files to be parsed",
-                    type=Path)
-corpus_parser.add_argument("destination_path", 
-                    help="Destination path to save the parsed files",
-                    type=Path)
-corpus_parser.add_argument("sentence_alignment_path", 
-                    help="Destination path to save the aligned sentences",
-                    type=Path)
-corpus_parser.add_argument("bidirectional_path", 
-                    help="Destination path to save the sentence's bidirectional alignments",
-                    type=Path)
-corpus_parser.add_argument("projection_path", 
-                    help="Destination path to save the projected sentences",
-                    type=Path)
+positional_args = [
+    positional_args_corpus_parser[0],
+    positional_args_corpus_parser[1],
+    positional_args_sentence_aligner[1],
+    positional_args_alginer[1],
+    positional_args_projector[3]
+]
 
-# Algorithm choices
-parsers = ["bret", "conll"]
-corpus_parser.add_argument("--parser",
-                    help="Select the type of parser to use",
-                    type=str,
-                    # nargs="?",
-                    # const=parsers[0],
-                    default=parsers[0],
-                    choices=parsers)
-projectors = ["cross"]
-corpus_parser.add_argument("--projector",
-                    help="Select the projection algorithm to use",
-                    type=str,
-                    # nargs="?",
-                    # const=projectors[0],
-                    default=projectors[0],
-                    choices=projectors)
-aligners = ["fast_align", "awesome_align"]
-corpus_parser.add_argument("--aligner",
-                    help="Select the alignment algorithm to use",
-                    type=str,
-                    # nargs="?",
-                    # const=aligners[0],
-                    default=aligners[0],
-                    choices=aligners)
-translators = ["google", "corpus"]
-corpus_parser.add_argument("--translator",
-                    help="Select the translation process",
-                    type=str,
-                    # nargs="?",
-                    # const=translators[0],
-                    default=translators[0],
-                    choices=translators)
+choice_args = choice_args_corpus_parser + choice_args_sentence_aligner + choice_args_alginer + choice_args_projector
 
-# Other Args
-corpus_parser.add_argument("--source_language_sentences",
-                    help="Required if corpus translator is selected: Path for the sentences in source language",
-                    type=Path,
-                    default=None)
-corpus_parser.add_argument("--target_language_sentences",
-                    help="Required if corpus translator is selected: Path for the sentences in target language",
-                    type=Path,
-                    default=None)
+optional_args = list(set(optional_args_corpus_parser + optional_args_sentence_aligner + optional_args_alginer + optional_args_projector))
 
-corpus_parser.add_argument("--source_language",
-                    help="Source language",
-                    type=str,
-                    default="english")
-corpus_parser.add_argument("--target_language",
-                    help="Target language",
-                    type=str,
-                    default="spanish")
+update_parser(
+    parser,    
+    positional_args,
+    choice_args,
+    optional_args
+)
 
-# Pasing arguments
-args = corpus_parser.parse_args()
+args = parser.parse_args()
 
-# Get values
-parser = {
-    "bret": BretParser(),
-    "conll": ConllParser(),
-}[args.parser]
-
-projector = {
-    "cross": CrossLingualAnnotationProjector(),
-}[args.projector]
-
-translator = {
-    "google": GoogleDeepTranslator(),
-}
-if args.source_language_sentences and args.target_language_sentences:
-    translator["corpus"] = FromCorpusTranslator(
-                                args.source_language_sentences, 
-                                args.target_language_sentences, 
-                                args.source_language, 
-                                args.target_language),
-translator = translator[args.translator]
-
-aligner = {
-    "fast_align": FastAlignAligner(), 
-    "awesome_align": AwesomeAlignAligner(), 
-}[args.aligner]
+parser = create_from_args_corpus_parser(args)
+sentence_aligner = create_from_args_sentence_aligner(args)
+aligner = create_from_args_aligner(args)
+projector = create_from_args_projector(args)
 
 full_corpus_processing_pipeline(
     args.source_path,
-    args.destination_path,
+    args.conll_parsed_path,
     args.sentence_alignment_path,
     args.bidirectional_path,
     args.projection_path,
     parser,
-    SentenceAligner(translator),
+    sentence_aligner,
     aligner,
     projector,
     source_language = args.source_language,

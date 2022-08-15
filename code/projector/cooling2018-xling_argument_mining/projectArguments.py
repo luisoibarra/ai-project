@@ -110,14 +110,15 @@ def getTranslationIndices(indices,align, tag):
     for myK in range(K,0,-1):
       indexStart,indexEnd = findExtremeConsecutive(flat_list,reverse=False,k=K),findExtremeConsecutive(flat_list,reverse=True,k=myK)
       if len(aligns)>0:
-       indexEndPrev = aligns[-1][1]
-       indexStartPrev = aligns[-1][0]
-       if indexStart<=indexEndPrev:
-        sys.stderr.write("%s: DOESN'T WORK OUT %d %d\n"%(tag, indexStart,indexEndPrev))
-        if indexEnd<indexStartPrev: 
-          sys.stderr.write("%s: Li'l non-monotonity\n"%(tag,))
-          break 
-        indexStart = indexEndPrev+1
+        indexEndPrev = aligns[-1][1]
+        indexStartPrev = aligns[-1][0]
+        if indexStart<=indexEndPrev:
+          # Intersection isn't empty
+          sys.stderr.write(f"Projection overlaps near to {indexStart} {indexEndPrev}.\nOverlap: {tag[1][indexStart:indexEndPrev+1]}")
+          if indexEnd<indexStartPrev: 
+            sys.stderr.write("%s: Li'l non-monotonity\n"%(tag,))
+            break 
+          indexStart = indexEndPrev+1
       if indexStart<=indexEnd: break
     if indexStart>indexEnd:
         sys.stderr.write(str(aligns))
@@ -151,6 +152,9 @@ def process(sentences,sentences_alignments,labels,fout,verbose=False):
     curLabels = labels[last:last+m]
     indices = detect_bios(curLabels)
     last = last+m
+    if None in [x for y in indices for x in y]:
+      log.warning(f"None in indices. Skipping projection:\nLabels: {curLabels}\nAlignment: {sentences[i]}")
+      continue
     #print(en_tokens,"\t",curLabels,"\t",de_tokens,"\t",indices)
     #print(align)
     aligns = sorted( getTranslationIndices(indices,align, sentences[i]) )

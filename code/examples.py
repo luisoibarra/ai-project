@@ -1,9 +1,10 @@
-from projector.sentence_aligner import SentenceAligner
-from projector.translator import GoogleDeepTranslator, SelfTranslator, FromCorpusTranslator
+from corpus_parser.unified_parser import UnifiedParser
+from sentence_aligner.sentence_aligner import SentenceAligner
+from sentence_aligner.translator import GoogleDeepTranslator, SelfTranslator, FromCorpusTranslator
 from corpus_parser.conll_parser import ConllParser
-from pipelines.corpus_pipelines import full_corpus_processing_pipeline, parse_corpus_pipeline
+from pipelines.corpus_pipelines import full_corpus_processing_pipeline, make_alignemnts_pipeline, parse_corpus_pipeline
 from projector.projector import PendingSourceAnnotationProjector, SelfLanguageProjector, CrossLingualAnnotationProjector
-from projector.aligner import AwesomeAlignAligner, SelfLanguageAligner, FastAlignAligner
+from aligner.aligner import AwesomeAlignAligner, SelfLanguageAligner, FastAlignAligner
 
 from corpus_parser.bret_parser import BretParser
 from pathlib import Path
@@ -14,9 +15,13 @@ def corpus_processing_example():
     """
 
     base_path = Path("data")
-    dataset_name = "testing"
+    dataset_name = "persuasive_essays_sentence"
+    # dataset_name = "testing_sentence"
+    # dataset_name = "testing"
 
-    corpus_parser = BretParser()
+    # corpus_parser = BretParser()
+    # corpus_parser = ConllParser()
+    corpus_parser = UnifiedParser()
 
     corpus_dir = Path(base_path, "corpus", dataset_name)
 
@@ -36,8 +41,8 @@ def corpus_processing_example():
     sentence_aligner = SentenceAligner(translator)
 
     # aligner = SelfLanguageAligner()
-    # aligner = FastAlignAligner()
-    aligner = AwesomeAlignAligner()
+    aligner = FastAlignAligner()
+    # aligner = AwesomeAlignAligner()
 
     sentences_alignment_dir = Path(base_path, "sentence_alignment", dataset_name)
     bidirectional_alignment_dir = Path(base_path, "bidirectional_alignment", dataset_name)
@@ -46,6 +51,15 @@ def corpus_processing_example():
     # projector = PendingSourceAnnotationProjector()
     projector = CrossLingualAnnotationProjector()
 
+    # make_alignemnts_pipeline(
+    #     exported_conll_dir,
+    #     sentences_alignment_dir,
+    #     bidirectional_alignment_dir,
+    #     projection_dir,
+    #     sentence_aligner,
+    #     aligner,
+    #     projector
+    # )
     full_corpus_processing_pipeline(
         corpus_dir, 
         exported_conll_dir, 

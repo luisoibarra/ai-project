@@ -1,8 +1,8 @@
 
 
-from projector.sentence_aligner import SentenceAligner
+from sentence_aligner.sentence_aligner import SentenceAligner
 from projector.projector import Projector
-from projector.aligner import Aligner
+from aligner.aligner import Aligner
 from corpus_parser.parser import Parser
 from corpus_parser.conll_parser import ConllParser
 from pathlib import Path

@@ -31,25 +31,32 @@ class ConllParser(Parser):
         returns: A new list containing a sentence separator 
         """
         new_line_infos = []
-        content = " ".join(tok["tok"] for tok in line_infos)
+        previous_splitted = [i for i, tok in enumerate(line_infos) if tok["bio_tag"] == ""]
+        if len(previous_splitted) == 0 or line_infos[-1] != self.__sent_separator:
+             previous_splitted.append(len(line_infos))
         index = 0
-        for sentence in sent_tokenize(content, language=language):
-            for word in sentence.split(" "):
-                assert word == line_infos[index]["tok"]
-                new_line_infos.append(line_infos[index])
-                index += 1
-            # Sentence separator
-            new_line_infos.append(self.__sent_separator)
-        assert index == len(line_infos)
+        
+        for end in previous_splitted:
+            content = " ".join(tok["tok"] for tok in line_infos[index:end])
+            for sentence in sent_tokenize(content, language=language):
+                for word in sentence.split(" "):
+                    assert word == line_infos[index]["tok"]
+                    new_line_infos.append(line_infos[index])
+                    index += 1
+                # Sentence separator
+                new_line_infos.append(self.__sent_separator)
+            assert index == end
+            index += 1
         return new_line_infos
         
-    def parse(self, content:str, file: Optional[Path] = None, **kwargs) -> ArgumentationInfo:
+    def parse(self, content:str, file: Optional[Path] = None, get_tags=False, **kwargs) -> ArgumentationInfo:
         """
         Parse `content` returning DataFrames containing
         the argumentative unit and the relation information.
         
         content: text containing the content to parse
         file: Optional, content's original file
+        get_tags: If a List of tags info is returned instead a dataframe representation
         
         argumentative_units columns: 
           - `prop_id` Proposition ID inside the document
@@ -80,11 +87,16 @@ class ConllParser(Parser):
             match = self.annotation_regex.match(line)
             if match:
                 line_parse.append(match.groupdict())
+            elif line == "":
+                line_parse.append(self.__sent_separator)
             else:
                 if file:
                     log.warning(f"Line {i} file {file.name}. Match not found: {line}")
                 else:
                     log.warning(f"Line {i}. Match not found: {line}")
+
+        if get_tags:
+            return line_parse
 
         def extract_proposition(propositions: List[dict], start_index=0):
             """
@@ -103,7 +115,10 @@ class ConllParser(Parser):
                     return word[:-3]
                 return word
 
-            if propositions[current]["bio_tag"] == "O":
+            if propositions[current]["bio_tag"] == "": # Sentence separator
+                proposition_text = extract_language_tag(propositions[current]["tok"])
+                current += 1
+            elif propositions[current]["bio_tag"] == "O":
                 proposition_text = extract_language_tag(propositions[current]["tok"])
                 current += 1
 
@@ -113,10 +128,11 @@ class ConllParser(Parser):
                     current += 1
             else:
                 if propositions[current]["bio_tag"] != "B":
+                    proposition = propositions[current]
                     if file:
-                        log.warning(f"File {file.name}. Proposition '{proposition}' doesn't start with a B")
+                        log.warning(f"File {file.name}. Proposition '{proposition['tok']}' at index {current} doesn't start with a B")
                     else:
-                        log.warning(f"Proposition '{proposition}' doesn't start with a B")
+                        log.warning(f"Proposition '{proposition['tok']}' at index {current} doesn't start with a B")
                 
                 # Current should be B
                 proposition_text = extract_language_tag(propositions[current]["tok"])
@@ -141,7 +157,7 @@ class ConllParser(Parser):
             prop_info = line_parse[current-1] # All annotations of the argument are equal 
             prop_id = len(argumentative_units) + 1 # 0 is the root node
             
-            if prop_info["bio_tag"] == "O":
+            if prop_info["bio_tag"] in ["O", ""]:
                 non_argumentative_units = non_argumentative_units.append({
                     "prop_init": accumulative_offset,
                     "prop_end": accumulative_offset + len(proposition), 
@@ -164,7 +180,9 @@ class ConllParser(Parser):
                         "prop_id_target": prop_id + int(prop_info["relation_distance"]),
                     }, ignore_index=True)
             
-            accumulative_offset += len(proposition) + 1 # Extra separator when rebuilding text
+            accumulative_offset += len(proposition)
+            if prop_info["bio_tag"] != "":
+                accumulative_offset += 1 # Extra separator when rebuilding text
         
         return argumentative_units, relations, non_argumentative_units
         
@@ -232,18 +250,22 @@ class ConllParser(Parser):
                         tags_info[-1]["full_tag"] = self.TAG_FORMAT.format_map(tags_info[-1]).replace("-none", "")
 
                 else:
-                    # Out of proposition
-                    for tok in prop_tokens:
-                        # Fill the gap with O until the proposition is found
-                        tags_info.append({
-                            "tok": tok,
-                            "bio_tag": "O",
-                            "prop_type": "none",
-                            "relation_type": "none",
-                            "relation_distance": "none"
-                        })
-                        tags_info[-1]["full_tag"] = "O"
-            
+                    if all(x == "\n" for x in prop_text): # Sentence and Paragraph separators
+                        for x in prop_text:
+                            tags_info.append(self.__sent_separator)
+                    else:
+                        # Out of proposition
+                        for tok in prop_tokens:
+                            # Fill the gap with O until the proposition is found
+                            tags_info.append({
+                                "tok": tok,
+                                "bio_tag": "O",
+                                "prop_type": "none",
+                                "relation_type": "none",
+                                "relation_distance": "none"
+                            })
+                            tags_info[-1]["full_tag"] = "O"
+                
             if split_sentences:
                 tags_info = self.__split_sentences(tags_info, language)
             

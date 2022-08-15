@@ -1,8 +1,8 @@
 # Install and build mgiza
 
-# git clone https://github.com/moses-smt/mgiza/ ./../projector/mgiza
+git clone https://github.com/moses-smt/mgiza/ ./../aligner/mgiza
 
-cd ./../projector/mgiza/mgizapp
+cd ./../aligner/mgiza/mgizapp
 
 echo "Building..."
 

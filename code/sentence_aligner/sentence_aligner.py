@@ -1,6 +1,6 @@
 from concurrent.futures import Future, ThreadPoolExecutor, wait
 import logging
-from projector.translator import Translator
+from .translator import Translator
 from typing import Callable, Dict, List, Optional, Tuple
 from corpus_parser.conll_parser import ConllParser
 from pathlib import Path
@@ -29,33 +29,38 @@ class SentenceAligner:
         sentence_dest: Where to save the sentence alignment
         sentences_splitted: If in the conll file the sentence are splitted by an empty line 
         """
-        parser = ConllParser()
-        df_representations = parser.parse_dir(corpus_address) # CONVERT TO MIDDLE TRANSOFMATION
         
         if not sentence_dest.exists(): sentence_dest.mkdir(exist_ok=True, parents=True)
         
         bio_parser = ConllParser()
-        tags = bio_parser.from_dataframes(df_representations, get_tags=True, **kwargs)
+        tags = bio_parser.parse_dir(corpus_address, get_tags = True)
         
         # Activating translator cache with context
         with self.translator:
-            for key, (annotated_tags_info, text) in tags.items():
-                if sentences_splitted:
-                    text = " ".join(tok["tok"] for tok in annotated_tags_info)
-                sentence_sentence_text = self.make_sentence_sentence_text(text, sentences_splitted=sentences_splitted, **kwargs)
+            for key, annotated_tags_info in tags.items():
+                text = " ".join(tok["tok"] for tok in annotated_tags_info)
+                sentence_sentence_text = self.make_sentence_sentence_text(text, sentences_splitted=sentences_splitted, source_word_tokenizer=lambda x, *args, **kwargs: x.split(), **kwargs)
                 dest_file = sentence_dest / (Path(key).name + ".align")
                 dest_file.write_text(sentence_sentence_text)
 
-    def make_sentence_sentence_text(self, text: str, sentences_splitted=True, word_tokenizer: Callable[[str,],List[str]]=word_tokenize, 
-                                    sent_tokenizer: Callable[[str,],List[str]]=sent_tokenize, 
-              source_language: str="english", target_language: str="spanish", separator: str=SEPARATOR) -> str:
+    def make_sentence_sentence_text(self, 
+            text: str, 
+            sentences_splitted=True, 
+            source_word_tokenizer: Callable[[str,],List[str]]=word_tokenize, 
+            target_word_tokenizer: Callable[[str,],List[str]]=word_tokenize, 
+            sent_tokenizer: Callable[[str,],List[str]]=sent_tokenize, 
+            source_language: str="english", 
+            target_language: str="spanish", 
+            separator: str=SEPARATOR) -> str:
         """
         Split the given `text` sentence by sentence using the given `sent_tokenizer`. The
         split is made by placing in each line the sentence in `source_language`
         followed by `separator` and then the sentence in `target_language`  
         
         text: Text to be splitted
-        word_tokenizer: Function that receives a text and a language and returns a list with
+        source_word_tokenizer: Function that receives a text and a language and returns a list with
+        the tokens present in text
+        target_word_tokenizer: Function that receives a text and a language and returns a list with
         the tokens present in text
         sent_tokenizer: Function that receives a text and a language and returns a list with
         the sentences present in text
@@ -74,13 +79,16 @@ class SentenceAligner:
             result = []
             for sentence in sentences[batch*slice:batch*(slice+1)]:
                 # Result is the sentence's tokens separated by spaces
-                source_sentence_with_spaces = " ".join(word_tokenizer(sentence, language=source_language)).strip()
+                source_sentence_with_spaces = " ".join(source_word_tokenizer(sentence, language=source_language)).strip()
                 target_sentence = self.translator.translate(source_sentence_with_spaces, source_language=source_language, target_language=target_language)
-                target_sentence_with_spaces = " ".join(word_tokenizer(target_sentence, language=target_language)).strip()
-                
+                if target_sentence is not None:
+                    target_sentence_with_spaces = " ".join(target_word_tokenizer(target_sentence, language=target_language)).strip()
+                else:
+                    logging.warning(f"Target sentence translation for {source_sentence_with_spaces} is None. Defaulting translation to {source_sentence_with_spaces}")
+                    target_sentence_with_spaces = source_sentence_with_spaces
                 result.append((source_sentence_with_spaces, target_sentence_with_spaces))
-            return "\n".join(f"{source}{self.SEPARATOR}{target}" for source, target in result)
-        
+            return "\n".join(f"{source}{separator}{target}" for source, target in result)
+
         futures: List[Future] = []
         with ThreadPoolExecutor(max_workers=self.max_worker) as exe:
             for i in range(self.max_worker):

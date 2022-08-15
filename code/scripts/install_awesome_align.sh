@@ -1,8 +1,8 @@
 # Install and build awesome-align
 
-git clone https://github.com/neulab/awesome-align ./../projector/awesome-align
+git clone https://github.com/neulab/awesome-align ./../aligner/awesome-align
 
-cd ./../projector/awesome-align
+cd ./../aligner/awesome-align
 
 echo "Building..."
 
