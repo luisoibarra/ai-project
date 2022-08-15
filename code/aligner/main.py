@@ -34,12 +34,18 @@ choice_args = [
 ]
 
 optional_args = [
+    OptionalArg(
+        name="max_worker",
+        help="Max threads active that can have the process",
+        type=int,
+        default=10
+    )
 ]
 
 def create_from_args(args) -> Aligner:
     aligner = {
-        "fast_align": FastAlignAligner(), 
-        "awesome_align": AwesomeAlignAligner(), 
+        "fast_align": FastAlignAligner(args.max_worker), 
+        "awesome_align": AwesomeAlignAligner(args.max_worker), 
     }[args.aligner]
     return aligner
 
