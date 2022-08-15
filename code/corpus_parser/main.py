@@ -63,10 +63,16 @@ def create_from_args(args) -> Parser:
 
 def handle_from_args(args):
     parser = create_from_args(args)
-    parser.parse_dir(args.source_path, 
-                     args.conll_parsed_path, 
+    df = parser.parse_dir(args.source_path, 
                      source_language=args.source_language, 
                      target_language=args.target_language)
+
+    conll = ConllParser() 
+
+    conll.export_from_dataframes(args.conll_parsed_path, 
+                                 df, 
+                                 source_language=args.source_language, 
+                                 target_language=args.target_language)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

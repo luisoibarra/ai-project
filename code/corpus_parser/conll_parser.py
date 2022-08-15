@@ -187,13 +187,13 @@ class ConllParser(Parser):
         return argumentative_units, relations, non_argumentative_units
         
 
-    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], language="english", get_tags=False, exact_text=True, split_sentences=True, **kwargs) -> Dict[str, Union[AnnotatedRawTextInfo, Tuple[List[ConllTagInfo], str]]]:
+    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], source_language="english", get_tags=False, exact_text=True, split_sentences=True, **kwargs) -> Dict[str, Union[AnnotatedRawTextInfo, Tuple[List[ConllTagInfo], str]]]:
         """
         Creates a CONLL annotated corpus representing the received DataFrames. 
         
         dataframes: The result from calling a parse function in any Parser class
         the keys aren't important, so a mock key can be passed.
-        language: Language for tokenization process
+        source_language: Language for tokenization process
         get_tags: If true, returns the tags instead of the annotated text
         exact_text: If true, returns the exact text representation else will 
         be returned the tokens separated by whitespaces
@@ -216,7 +216,7 @@ class ConllParser(Parser):
             text = default_gap*max_length if exact_text else ""
             
             for index, (prop_id, prop_type, prop_init, prop_end, prop_text) in all_units.iterrows():
-                prop_tokens = word_tokenize(prop_text, language=language)
+                prop_tokens = word_tokenize(prop_text, language=source_language)
                 
                 if exact_text:
                     text = text[:prop_init] + prop_text + text[prop_end:]
@@ -267,7 +267,7 @@ class ConllParser(Parser):
                             tags_info[-1]["full_tag"] = "O"
                 
             if split_sentences:
-                tags_info = self.__split_sentences(tags_info, language)
+                tags_info = self.__split_sentences(tags_info, source_language)
             
             if get_tags:
                 results[file_path_str] = tags_info, text

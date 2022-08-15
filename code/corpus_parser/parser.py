@@ -114,7 +114,7 @@ class Parser:
         """
         raise NotImplementedError()
 
-    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], language="english", **kwargs) -> Dict[str, AnnotatedRawTextInfo]:
+    def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], source_language="english", **kwargs) -> Dict[str, AnnotatedRawTextInfo]:
         """
         Creates file with annotated corpus representing the received DataFrames. 
         
@@ -137,7 +137,7 @@ class Parser:
         Parser.export_corpus_from_files(dest_address, representation, **kwargs)
     
     @staticmethod
-    def export_corpus_from_files(dest_address: Path, files: Dict[str,AnnotatedRawTextInfo], suffix: str = ".conll"):
+    def export_corpus_from_files(dest_address: Path, files: Dict[str,AnnotatedRawTextInfo], suffix: str = ".conll", **kwargs):
         """
         Saves the corpus into dest_address. The files will be named after its key.
         
