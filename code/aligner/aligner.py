@@ -91,66 +91,68 @@ class FastAlignAligner(Aligner):
         atools_opt: If the atools optimizations are performed
         """
         # ./fast_align -i {sentence_align_dir} -d -o -v > {alignment_dest}
-        fast_align_cmd = f'"{Path(self.fast_align_path).relative_to(Path().resolve())}"'
-        atools_cmd = f'"{Path(self.fast_align_path, "..", "atools").resolve().relative_to(Path().resolve())}"'
+        fast_align_cmd = f'"{Path(self.fast_align_path).resolve()}"'
+        atools_cmd = f'"{Path(self.fast_align_path, "..", "atools").resolve()}"'
+        
+        alignment_dest = alignment_dest.resolve()
         
         forward_command = make_command( 
             fast_align_cmd, 
             "-i", 
-            str(sentence_align_dir), 
+            f'"{str(sentence_align_dir)}"', 
             "-d",
             "-o",
             "-v",
             ">",
-            str(alignment_dest)
+            f'"{str(alignment_dest)}"'
         )
         run_bash_command(forward_command)
         
         reverse_alignment_dest = alignment_dest / ".." / (alignment_dest.name + ".reverse.bidirectional")
-        reverse_alignment_dest = reverse_alignment_dest.resolve().relative_to(Path().resolve())
+        reverse_alignment_dest = reverse_alignment_dest.resolve()
         
         backward_command = make_command( 
             fast_align_cmd, 
             "-i", 
-            str(sentence_align_dir), 
+            f'"{str(sentence_align_dir)}"', 
             "-d",
             "-o",
             "-v",
             "-r",
             ">",
-            str(reverse_alignment_dest)
+            f'"{str(reverse_alignment_dest)}"'
         )
         run_bash_command(backward_command)
         
 
         if atools_opt:
             revised_alignment_dest = alignment_dest / ".." / (alignment_dest.name + ".revised.bidirectional")
-            revised_alignment_dest = revised_alignment_dest.resolve().relative_to(Path().resolve())
+            revised_alignment_dest = revised_alignment_dest.resolve()
             improvement_command = make_command(
                 atools_cmd, 
                 "-i", 
-                str(alignment_dest), 
+                f'"{str(alignment_dest)}"', 
                 "-j",
-                str(reverse_alignment_dest), 
+                f'"{str(reverse_alignment_dest)}"', 
                 "-c",
                 "grow-diag-final-and",
                 ">",
-                str(revised_alignment_dest)
+                f'"{str(revised_alignment_dest)}"'
             )
             
             run_bash_command(improvement_command)
             
             copy_command = make_command(
                 "mv", 
-                str(revised_alignment_dest),
-                str(alignment_dest), 
+                f'"{str(revised_alignment_dest)}"',
+                f'"{str(alignment_dest)}"', 
             )
             
             run_bash_command(copy_command)
             
         run_bash_command(make_command(
             "rm",
-            str(reverse_alignment_dest)
+            f'"{str(reverse_alignment_dest)}"'
         ))
             
 class AwesomeAlignAligner(Aligner):
