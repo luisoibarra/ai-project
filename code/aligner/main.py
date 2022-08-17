@@ -38,7 +38,7 @@ optional_args = [
         name="max_worker",
         help="Max threads active that can have the process",
         type=int,
-        default=10
+        default=None
     )
 ]
 

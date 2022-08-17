@@ -1,4 +1,5 @@
 from concurrent.futures import Future, ThreadPoolExecutor, wait
+import logging
 from utils.console_utils import make_command, run_bash_command
 from typing import List, Optional
 
@@ -9,7 +10,7 @@ class Aligner:
     Abstract class that makes the bidirectional alignment.
     """
     
-    def __init__(self, max_worker: int=20) -> None:
+    def __init__(self, max_worker: Optional[int] = 20) -> None:
         self.max_worker = max_worker
     
     def bidirectional_align_dir(self, sentence_alignment_dir: Path, align_dest: Path, **kwargs):
@@ -76,7 +77,7 @@ class FastAlignAligner(Aligner):
     Aligner using the fast_align algorithm. 
     """
     
-    def __init__(self, max_worker: int = 20, fast_align_path: Optional[Path] = None) -> None:
+    def __init__(self, max_worker: Optional[int] = None, fast_align_path: Optional[Path] = None) -> None:
         super().__init__(max_worker)
         self.fast_align_path = fast_align_path if fast_align_path else Path(__file__, "..", "fast_align", "build", "fast_align").resolve()
     
@@ -168,8 +169,14 @@ class AwesomeAlignAligner(Aligner):
         "batch_size"
     }
     
-    def __init__(self, max_worker: int = 20, awesome_align_path: Optional[Path] = None) -> None:
-        super().__init__(max_worker)
+    def __init__(self, max_worker: Optional[int] = None, awesome_align_path: Optional[Path] = None) -> None:
+        if max_worker is None:
+            super().__init__(max_worker=3)
+        else:
+            super().__init__(max_worker=max_worker)
+            if self.max_worker > 5:
+                logging.warning(f"High value for max_worker in AwesomeAlignAligner. This could lead to files not been precessed. Recommended values are [1, 2, 3]")
+
         self.awesome_align_path = awesome_align_path if awesome_align_path else Path(__file__, "..", "awesome-align", "awesome_align").resolve()
     
     def do_bidirectional_align_file(self, sentence_align_dir: Path, alignment_dest: Path, **kwargs):
