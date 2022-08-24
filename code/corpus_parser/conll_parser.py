@@ -186,6 +186,28 @@ class ConllParser(Parser):
         
         return argumentative_units, relations, non_argumentative_units
         
+    def fix_annotations(self, annotations: List[ConllTagInfo]) -> List[ConllTagInfo]:
+        """
+        Fix posible errors found in `annotations` returning a new list without them.
+        
+        annotations: Original list of conll annotations
+        """
+        fixed_annotations = []
+        for i, annotation in enumerate(annotations):
+            # The next annotation can go after the previous annotation
+            # But a sentence separator is in the middle
+            if annotation == self.__sent_separator \
+               and i < len(annotations) \
+               and i > 0 \
+               and annotations[i+1]["bio_tag"] == "I" \
+               and annotations[i-1]["bio_tag"] in ["B", "I"] \
+               and annotations[i-1]["prop_type"] == annotations[i]["prop_type"] \
+               and annotations[i-1]["relation_type"] == annotations[i]["relation_type"] \
+               and annotations[i-1]["relation_distance"] == annotations[i]["relation_distance"]:
+                # Skip sentence separator
+                continue
+            fixed_annotations.append(annotation)
+        return fixed_annotations
 
     def from_dataframes(self, dataframes: Dict[str, ArgumentationInfo], source_language="english", get_tags=False, exact_text=True, split_sentences=True, **kwargs) -> Dict[str, Union[AnnotatedRawTextInfo, Tuple[List[ConllTagInfo], str]]]:
         """
@@ -268,6 +290,8 @@ class ConllParser(Parser):
                 
             if split_sentences:
                 tags_info = self.__split_sentences(tags_info, source_language)
+            
+            tags_info = self.fix_annotations(tags_info)
             
             if get_tags:
                 results[file_path_str] = tags_info, text

@@ -2,19 +2,30 @@
 from pathlib import Path
 import nltk
 
-def convert_to_tuples(data:Path, all_words: set, all_tags: set, all_chars: set, bioes=True, meta_tags_level=99, meta_tags_separator="-"):
+def convert_to_tuples(data:Path, all_words: set, all_tags: set, all_chars: set, bioes=True, meta_tags_level=99, meta_tags_separator="-", use_sentence_split=False):
     tags = []
     current_paragraph_tags = []
     current_paragraph_words = []
-    for line in data.read_text().splitlines():
+    for i, line in enumerate(data.read_text().splitlines()):
         if not line: # Empty line dataset
-            if bioes:
-                current_paragraph_tags = convert_bio_to_bioes(current_paragraph_tags)
-            all_tags.update(current_paragraph_tags) 
-            tags.append([x for x in zip(current_paragraph_words, current_paragraph_tags)])
-            current_paragraph_tags = []
-            current_paragraph_words = []
+            if use_sentence_split:
+                if bioes:
+                    current_paragraph_tags = convert_bio_to_bioes(current_paragraph_tags)
+                all_tags.update(current_paragraph_tags)
+    
+                # Add sentence separator
+                current_paragraph_tags.append("") 
+                current_paragraph_words.append("") 
+    
+                tags.append([x for x in zip(current_paragraph_words, current_paragraph_tags)])
+                current_paragraph_tags = []
+                current_paragraph_words = []
+            else:
+                # Add sentence separator
+                current_paragraph_tags.append("") 
+                current_paragraph_words.append("") 
             continue
+
         word, annotation = line.split("\t")
 
         if len(word) >= 3 and word[-3] == "_": # word with _LN tag
@@ -28,15 +39,19 @@ def convert_to_tuples(data:Path, all_words: set, all_tags: set, all_chars: set, 
         current_paragraph_words.append(word)
     if current_paragraph_words:
         if bioes:
-            current_paragraph_tags = convert_bio_to_bioes(current_paragraph_tags)
+            current_paragraph_tags = convert_bio_to_bioes(current_paragraph_tags, (i, line, data))
         all_tags.update(current_paragraph_tags) 
         tags.append([x for x in zip(current_paragraph_words, current_paragraph_tags)])
     return tags
 
-def convert_bio_to_bioes(bio_tags: list):
+def convert_bio_to_bioes(bio_tags: list, trace_info=None):
     bioes_tags = []
     current_entity_tags = []
     for full_tag in bio_tags:
+        if not full_tag:
+            bioes_tags.append("")
+            continue
+        
         tag = full_tag[0]
         meta = full_tag[1:]
         if tag == "O":
@@ -69,13 +84,19 @@ def convert_bio_to_bioes(bio_tags: list):
                 current_entity_tags.append("B" + meta) # New current entity
         elif tag == "I":
             if len(current_entity_tags) == 0:
-                raise Exception("Invalid BIO format, I tag can be at the begining of a segment")
+                error_msg = "Invalid BIO format, I tag can be at the begining of a segment."
+                if trace_info:
+                    error_msg += f"\n{trace_info}"
+                raise Exception(error_msg)
             else:
                 current_entity_tags.append("I" + meta) # Continue the entity
         else:
-            raise Exception(f"Unsupported {tag} in BIO tagset")
+            error_msg = f"Unsupported {tag} in BIO tagset."
+            if trace_info:
+                error_msg += f"\n{trace_info}"
+            raise Exception(error_msg)
 
-    if len(current_entity_tags) == 1: # Resiual tags
+    if len(current_entity_tags) == 1: # Residual tags
         meta = current_entity_tags[0][1:]
         bioes_tags.append("S" + meta) # Single tag entity and outside
     elif len(current_entity_tags) > 1:
@@ -85,7 +106,7 @@ def convert_bio_to_bioes(bio_tags: list):
   
     return bioes_tags
 
-def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, all_words: set, all_tags: set, all_chars: set, language: str="english", meta_tags_level=99, meta_tags_separator="-"):
+def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, all_words: set, all_tags: set, all_chars: set, language: str="english", meta_tags_level=99, meta_tags_separator="-", use_sentence_split=True, use_nltk=True):
     """
     Creates from `conll_file` two files, `dest_sentence_file` and 
     `dest_tag_file`, containing the sentences splitted by `nltk` 
@@ -96,9 +117,10 @@ def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, all_
     dest_sentence_file: File containing the sentences.
     dest_tag_file: File containing the tags.
     with_meta_tags: If the output should conserve the meta tags
+    use_sentence_split: If the empty lines should be analyzed as sentence separators
     """
     
-    conll_paragraph_tuples = convert_to_tuples(conll_file, all_words, all_tags, all_chars, meta_tags_level=meta_tags_level, meta_tags_separator=meta_tags_separator)
+    conll_paragraph_tuples = convert_to_tuples(conll_file, all_words, all_tags, all_chars, meta_tags_level=meta_tags_level, meta_tags_separator=meta_tags_separator, use_sentence_split=use_sentence_split)
 
     dest_sentence_content = []
     dest_tag_content = []
@@ -110,15 +132,24 @@ def export(conll_file: Path, dest_sentence_file: Path, dest_tag_file: Path, all_
     }
     for sentence_tuples in conll_paragraph_tuples:
         current_sentence = [word for word, _ in sentence_tuples]
-        current_tags = [tag for _, tag in sentence_tuples]
+        current_tags = [tag for _, tag in sentence_tuples if tag]
         
-        sentences = nltk.sent_tokenize(" ".join(current_sentence), language=language)
+        if use_nltk:
+            sentences = nltk.sent_tokenize(" ".join(current_sentence), language=language)
+        else:
+            sentences = " ".join(current_sentence).split("  ")
+        
+        current_sentence = [word for word, _ in sentence_tuples if word]
+        
         current_tag_index = 0
         current_word_index = 0
         for sent in sentences:
             current_word: str = current_sentence[current_word_index]
             current_tag: str = current_tags[current_tag_index]
-            toks = nltk.word_tokenize(sent, language=language)
+            if use_nltk:
+                toks = nltk.word_tokenize(sent, language=language)
+            else:
+                toks = sent.split()
             dest_sentence_content.append([])
             dest_tag_content.append([])
             for j, tok in enumerate(toks, 1):
@@ -158,13 +189,16 @@ def export_vocabs(base_path: Path, all_words: set, all_chars: set, all_tags: set
     
     with (base_path / 'vocab.words.txt').open('w') as f:
         for w in sorted(all_words):
-            f.write(f'{w}\n')
+            if w:
+                f.write(f'{w}\n')
     with (base_path / 'vocab.chars.txt').open('w') as f:
         for w in sorted(all_chars):
-            f.write(f'{w}\n')
+            if w:
+                f.write(f'{w}\n')
     with (base_path / 'vocab.tags.txt').open('w') as f:
         for w in sorted(all_tags):
-            f.write(f'{w}\n')
+            if w:
+                f.write(f'{w}\n')
 
 def export_from_directory(source_directory: Path, dest_sent_file: Path, dest_tag_file: Path, all_words: set, all_tags: set, all_chars: set, language: str="english", meta_tags_level=99, meta_tags_separator="-"):
     temp_sent_file = Path("tempsentence16916312639")
@@ -179,7 +213,7 @@ def export_from_directory(source_directory: Path, dest_sent_file: Path, dest_tag
             with dest_tag_file.open("w") as dest_tag:
                 for file in source_directory.iterdir():
                     if file.suffix == ".conll":
-                        export(file, temp_sent_file, temp_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tags_separator)
+                        export(file, temp_sent_file, temp_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tags_separator, use_sentence_split=False, use_nltk=False)
                         dest_sent.write(temp_sent_file.read_text().replace("\n", " "))
                         dest_tag.write(temp_tag_file.read_text().replace("\n", " "))
                         dest_sent.write("\n")
@@ -212,24 +246,24 @@ def export_files(data_dir: Path, dest_dir: Path, language: str, meta_tags_level:
     train_file = data_dir / "train.conll"
     train_dest_sent_file = dest_dir / "train.words.txt"
     train_dest_tag_file = dest_dir / "train.tags.txt"
-    export(train_file, train_dest_sent_file, train_dest_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
+    export(train_file, train_dest_sent_file, train_dest_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator, use_sentence_split=True, use_nltk=False)
 
     # Test Block
     testa_file = data_dir / "test.conll"
     testa_dest_sent_file = dest_dir / "testa.words.txt"
     testa_dest_tag_file = dest_dir / "testa.tags.txt"
-    export(testa_file, testa_dest_sent_file, testa_dest_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
+    export(testa_file, testa_dest_sent_file, testa_dest_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator, use_sentence_split=True, use_nltk=False)
 
     # Validation Block
     testb_file = data_dir / "dev.conll"
     testb_dest_sent_file = dest_dir / "testb.words.txt"
     testb_dest_tag_file = dest_dir / "testb.tags.txt"
-    export(testb_file, testb_dest_sent_file, testb_dest_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
+    export(testb_file, testb_dest_sent_file, testb_dest_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator, use_sentence_split=True, use_nltk=False)
 
     # Export vocabularies
     export_vocabs(dest_dir, all_words, all_chars, all_tags)
 
-def export_directory(data_dir: Path, dest_dir: Path, language: str, meta_tags_level: int, meta_tag_separator="-"):
+def export_directory(data_dir: Path, dest_dir: Path, language: str, meta_tags_level: int, meta_tag_separator="-", only_train=True):
     """
     Creates a dataset for the files in `data_dir`, this directory must contain 3 directories
     train, dev and test with .conll annotated files. The data is saved in `dest_dir`
@@ -239,6 +273,7 @@ def export_directory(data_dir: Path, dest_dir: Path, language: str, meta_tags_le
     language: Language of the data
     meta_tags_level: Level of annotation to get: 0: BIOES, 1: BIOES-OtherTag, 2: BIOES-Tag1-Tag2, ...
     meta_tag_separator: Conll annotation separator 
+    only_train: If only the train file will be used to export the words, chars and tags files. Prevents information leaking
     """
     
     all_words = set()
@@ -255,6 +290,11 @@ def export_directory(data_dir: Path, dest_dir: Path, language: str, meta_tags_le
     testa_tag_file = dest_dir / "testa.tags.txt"
     export_from_directory(data_dir / "test", testa_sent_file, testa_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
 
+    if only_train:
+        all_words = set()
+        all_tags = set()
+        all_chars = set()
+
     train_sent_file = dest_dir / "train.words.txt"
     train_tag_file = dest_dir / "train.tags.txt"
     export_from_directory(data_dir / "train", train_sent_file, train_tag_file, all_words, all_tags, all_chars, language, meta_tags_level, meta_tag_separator)
@@ -265,7 +305,7 @@ def export_directory(data_dir: Path, dest_dir: Path, language: str, meta_tags_le
 if __name__ == "__main__":
 
     data_dir = Path(__file__, "..", "..", "..", "data").resolve()
-    data_dir = data_dir / "parsed_to_conll" / "ArgumentAnnotatedEssays-2.0"
+    data_dir = data_dir / "parsed_to_conll" / "persuasive_essays_paragraph"
     
     dest_dir = Path(__file__, "..", "data", "english_paragraph").resolve()
     

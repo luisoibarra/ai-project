@@ -114,7 +114,7 @@ def getTranslationIndices(indices,align, tag):
         indexStartPrev = aligns[-1][0]
         if indexStart<=indexEndPrev:
           # Intersection isn't empty
-          sys.stderr.write(f"Projection overlaps near to {indexStart} {indexEndPrev}.\nOverlap: {tag[1][indexStart:indexEndPrev+1]}")
+          sys.stderr.write(f"Projection overlaps near to {indexStart} {indexEndPrev}.\nOverlap: {tag[1][indexStart:indexEndPrev+1]}\n")
           if indexEnd<indexStartPrev: 
             sys.stderr.write("%s: Li'l non-monotonity\n"%(tag,))
             break 

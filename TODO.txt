@@ -1,0 +1,6 @@
+- Hacer funcion que arregle los desperfectos de la salida del modelo
+- Crear baseline para el modelo
+- Averiguar pq el accuracy da mal con parrafos
+- Hacer early stopping
+- Hacer k-fold validation 
+- Alignments with https://github.com/UKPLab/coling2018-xling_argument_mining/blob/master/code/annotationProjection/projectArguments.py
