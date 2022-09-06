@@ -65,7 +65,7 @@ class BretParser(Parser):
                 argument_dict["prop_init"] = int(argument_dict["prop_init"])
                 argument_dict["prop_end"] = int(argument_dict["prop_end"])
                 
-                argumentative_units = argumentative_units.append(argument_dict, ignore_index=True)
+                argumentative_units = pd.concat([argumentative_units, pd.DataFrame(argument_dict, index=[0])], ignore_index=True)
                 continue
             relation_match = self.relation_regex.match(line)
             if relation_match:
@@ -75,21 +75,27 @@ class BretParser(Parser):
                 argument_dict["prop_id_source"] = int(argument_dict["prop_id_source"])
                 argument_dict["prop_id_target"] = int(argument_dict["prop_id_target"])
                 
-                relations = relations.append(argument_dict, ignore_index=True)
+                relations = pd.concat([relations, pd.DataFrame(argument_dict, index=[0])], ignore_index=True)
                 continue
             log.warning(f"Line {i} file {file.name}. Match not found: {line}")
         
         argumentative_units.sort_values(by="prop_init", inplace=True)
         
+        order_ids = {old_id: new_id for new_id, old_id in enumerate(argumentative_units['prop_id'], start=1)}
+        argumentative_units['prop_id'] = argumentative_units['prop_id'].map(lambda x: order_ids[x])
+        relations['prop_id_source'] = relations['prop_id_source'].map(lambda x: order_ids[x])
+        relations['prop_id_target'] = relations['prop_id_target'].map(lambda x: order_ids[x])
+        
         last_match = 0
         for _, (_, _, prop_init, prop_end, _) in argumentative_units.iterrows():
             if last_match < prop_init:
                 # Non argumentative gap
-                non_argumentative_units = non_argumentative_units.append({
+                non_argument_dict = {
                     "prop_init":last_match,
                     "prop_end":prop_init,
                     "prop_text":original_text[last_match:prop_init],
-                }, ignore_index=True)
+                }
+                non_argumentative_units = pd.concat([non_argumentative_units, pd.DataFrame(non_argument_dict, index=[0])], ignore_index=True)
                 # last_match = prop_end
             elif last_match == prop_init:
                 # Arguments together
@@ -100,11 +106,12 @@ class BretParser(Parser):
         
         if last_match != len(original_text):
             # If text ends in a non argumentative gap
-            non_argumentative_units = non_argumentative_units.append({
+            non_argument_dict = {
                 "prop_init":last_match,
                 "prop_end":len(original_text),
                 "prop_text":original_text[last_match:len(original_text)],
-            }, ignore_index=True)
+            }
+            non_argumentative_units = pd.concat([non_argumentative_units, pd.DataFrame(non_argument_dict, index=[0])], ignore_index=True)
         
         return argumentative_units, relations, non_argumentative_units
 

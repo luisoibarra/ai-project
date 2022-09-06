@@ -77,7 +77,7 @@ class FastAlignAligner(Aligner):
     Aligner using the fast_align algorithm. 
     """
     
-    def __init__(self, max_worker: Optional[int] = None, fast_align_path: Optional[Path] = None) -> None:
+    def __init__(self, max_worker: Optional[int] = 20, fast_align_path: Optional[Path] = None) -> None:
         super().__init__(max_worker)
         self.fast_align_path = fast_align_path if fast_align_path else Path(__file__, "..", "fast_align", "build", "fast_align").resolve()
     

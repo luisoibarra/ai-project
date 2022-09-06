@@ -158,27 +158,27 @@ class ConllParser(Parser):
             prop_id = len(argumentative_units) + 1 # 0 is the root node
             
             if prop_info["bio_tag"] in ["O", ""]:
-                non_argumentative_units = non_argumentative_units.append({
+                non_argumentative_units = pd.concat([non_argumentative_units, pd.DataFrame({
                     "prop_init": accumulative_offset,
                     "prop_end": accumulative_offset + len(proposition), 
                     "prop_text": proposition,
-                }, ignore_index=True)
+                }, index=[0])], ignore_index=True)
             else:
-                argumentative_units = argumentative_units.append({
+                argumentative_units = pd.concat([argumentative_units, pd.DataFrame({
                     "prop_id": prop_id, 
                     "prop_type": prop_info["prop_type"],
                     "prop_init": accumulative_offset,
                     "prop_end": accumulative_offset + len(proposition), 
                     "prop_text": proposition,
-                }, ignore_index=True)
+                }, index=[0])], ignore_index=True)
                 
                 if None not in [prop_info["relation_type"], prop_info["relation_distance"]]:
-                    relations = relations.append({
+                    relations = pd.concat([relations, pd.DataFrame({
                         "relation_id": len(relations), 
                         "relation_type": prop_info["relation_type"],
                         "prop_id_source": prop_id, 
                         "prop_id_target": prop_id + int(prop_info["relation_distance"]),
-                    }, ignore_index=True)
+                    }, index=[0])], ignore_index=True)
             
             accumulative_offset += len(proposition)
             if prop_info["bio_tag"] != "":
@@ -197,13 +197,13 @@ class ConllParser(Parser):
             # The next annotation can go after the previous annotation
             # But a sentence separator is in the middle
             if annotation == self.__sent_separator \
-               and i < len(annotations) \
+               and i < len(annotations) - 1 \
                and i > 0 \
                and annotations[i+1]["bio_tag"] == "I" \
                and annotations[i-1]["bio_tag"] in ["B", "I"] \
-               and annotations[i-1]["prop_type"] == annotations[i]["prop_type"] \
-               and annotations[i-1]["relation_type"] == annotations[i]["relation_type"] \
-               and annotations[i-1]["relation_distance"] == annotations[i]["relation_distance"]:
+               and annotations[i-1]["prop_type"] == annotations[i+1]["prop_type"] \
+               and annotations[i-1]["relation_type"] == annotations[i+1]["relation_type"] \
+               and annotations[i-1]["relation_distance"] == annotations[i+1]["relation_distance"]:
                 # Skip sentence separator
                 continue
             fixed_annotations.append(annotation)
@@ -230,7 +230,7 @@ class ConllParser(Parser):
 
             result = ""
             tags_info = []
-            all_units = argumentative_units.append(non_argumentative_units, sort=True)
+            all_units = pd.concat([argumentative_units, non_argumentative_units], sort=True)
             all_units.sort_values(by="prop_init", inplace=True)
             all_units = all_units.reindex(columns=["prop_id", "prop_type", "prop_init", "prop_end", "prop_text"])
             max_length = all_units["prop_end"].max()

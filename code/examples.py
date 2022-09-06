@@ -15,7 +15,8 @@ def corpus_processing_example():
     """
 
     base_path = Path("data")
-    dataset_name = "persuasive_essays_sentence"
+    dataset_name = "testing2"
+    # dataset_name = "persuasive_essays_sentence"
     # dataset_name = "testing_sentence"
     # dataset_name = "testing"
 
