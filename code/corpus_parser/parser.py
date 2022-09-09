@@ -80,7 +80,7 @@ class Parser:
           - `prop_end` When the proposition ends in the original text
           - `prop_text` Proposition text
           
-        return: (argumentative_units, relationsm non_argumentative_units)
+        return: (argumentative_units, relations, non_argumentative_units)
         """
         return self.parse(file.read_text(), file, **kwargs)
     

@@ -97,68 +97,81 @@ def create_sum_fn(axis):
     func.__name__ = "sumalong_" + str(axis)
     return func
 
-def apply_attention(source_input, target_input, prev_source_layer, prev_target_layer, source_layers, target_layers, embedding_size):
+def apply_attention(source_input, target_input, prev_source_layer, prev_target_layer, source_layers, target_layers, embedding_size, index):
     
     # create keys using dense layer
     source_linearity = layers.Dense(units=embedding_size,
-                             name='att_linearity_K_source')
-    source_keys = layers.TimeDistributed(source_linearity, name='att_K_source')(source_layers)
+                             name=f'att_linearity_K_source_{index}')
+    source_keys = layers.TimeDistributed(source_linearity, name=f'att_K_source_{index}')(source_layers)
     target_linearity = layers.Dense(units=embedding_size,
-                             name='att_linearity_K_target')
-    target_keys = layers.TimeDistributed(target_linearity, name='att_K_target')(target_layers)
+                             name=f'att_linearity_K_target_{index}')
+    target_keys = layers.TimeDistributed(target_linearity, name=f'att_K_target_{index}')(target_layers)
 
     # create query elements doing average and then multiplication
-    source_avg = layers.GlobalAveragePooling1D(name="avg_query_source")(source_layers)
-    target_avg = layers.GlobalAveragePooling1D(name="avg_query_target")(target_layers)
-    source_query = source_linearity(target_avg)
-    target_query = source_linearity(source_avg)
+    source_avg = layers.GlobalAveragePooling1D(name=f"avg_query_source_{index}")(source_layers)
+    target_avg = layers.GlobalAveragePooling1D(name=f"avg_query_target_{index}")(target_layers)
 
+    # Original code. Problems when saving the model
+    # source_query = source_linearity(target_avg)
+    # target_query = source_linearity(source_avg)
+    
+    # Code added to fix the problem.
+    querys_linear_source = layers.Dense(
+        units=embedding_size,
+        name=f'att_linearity_query_source_{index}')
+    querys_linear_target = layers.Dense(
+        units=embedding_size,
+        name=f'att_linearity_query_target_{index}')
+    
+    source_query = querys_linear_source(target_avg)
+    target_query = querys_linear_target(source_avg)
+    
     time_shape = (source_keys.shape)[1]
     space_shape = (source_keys.shape)[2]
 
     # repeat the query and sum
-    source_query = layers.RepeatVector(time_shape, name='repeat_query_source')(source_query)
-    target_query = layers.RepeatVector(time_shape, name='repeat_query_target')(target_query)
-    source_score = layers.Add(name='att_addition_source')([source_query, source_keys])
-    target_score = layers.Add(name='att_addition_target')([target_query, target_keys])
+    source_query = layers.RepeatVector(time_shape, name=f'repeat_query_source_{index}')(source_query)
+    target_query = layers.RepeatVector(time_shape, name=f'repeat_query_target_{index}')(target_query)
+    source_score = layers.Add(name=f'att_addition_source_{index}')([source_query, source_keys])
+    target_score = layers.Add(name=f'att_addition_target_{index}')([target_query, target_keys])
 
     # activation and dot product with importance vector
-    target_score = layers.Activation(activation='relu', name='att_activation_target')(target_score)
-    source_score = layers.Activation(activation='relu', name='att_activation_source')(source_score)
+    target_score = layers.Activation(activation='relu', name=f'att_activation_target_{index}')(target_score)
+    source_score = layers.Activation(activation='relu', name=f'att_activation_source_{index}')(source_score)
     imp_v_target = layers.Dense(units=1,
                          kernel_initializer='he_normal',
-                         name='importance_vector_target')
-    target_score = layers.TimeDistributed(imp_v_target, name='att_scores_target')(target_score)
+                         name=f'importance_vector_target_{index}')
+    target_score = layers.TimeDistributed(imp_v_target, name=f'att_scores_target_{index}')(target_score)
     imp_v_source = layers.Dense(units=1,
                          kernel_initializer='he_normal',
-                         name='importance_vector_source')
-    source_score = layers.TimeDistributed(imp_v_source, name='att_scores_source')(source_score)
+                         name=f'importance_vector_source_{index}')
+    source_score = layers.TimeDistributed(imp_v_source, name=f'att_scores_source_{index}')(source_score)
 
     # application of mask: padding layer are associated to very negative scores to improve softmax
-    source_score = layers.Flatten(name='att_scores_flat_source')(source_score)
-    target_score = layers.Flatten(name='att_scores_flat_target')(target_score)
-    maskLayer = layers.Lambda(create_padding_mask_fn(), name='masking')
-    negativeLayer = layers.Lambda(create_mutiply_negative_elements_fn(), name='negative_mul')
+    source_score = layers.Flatten(name=f'att_scores_flat_source_{index}')(source_score)
+    target_score = layers.Flatten(name=f'att_scores_flat_target_{index}')(target_score)
+    maskLayer = layers.Lambda(create_padding_mask_fn(), name=f'masking')
+    negativeLayer = layers.Lambda(create_mutiply_negative_elements_fn(), name=f'negative_mul')
     mask_source = maskLayer(source_input)
     mask_target = maskLayer(target_input)
     neg_source = negativeLayer(mask_source)
     neg_target = negativeLayer(mask_target)
-    source_score = layers.Add(name='att_masked_addition_source')([neg_source, source_score])
-    target_score = layers.Add(name='att_masked_addition_target')([neg_target, target_score])
+    source_score = layers.Add(name=f'att_masked_addition_source_{index}')([neg_source, source_score])
+    target_score = layers.Add(name=f'att_masked_addition_target_{index}')([neg_target, target_score])
 
     # softmax application
-    source_weight = layers.Activation(activation='softmax', name='att_weights_source')(source_score)
-    target_weight = layers.Activation(activation='softmax', name='att_weights_target')(target_score)
+    source_weight = layers.Activation(activation='softmax', name=f'att_weights_source_{index}')(source_score)
+    target_weight = layers.Activation(activation='softmax', name=f'att_weights_target_{index}')(target_score)
 
     # weighted sum
-    source_weight = layers.Reshape(target_shape=(source_weight.shape[-1], 1), name='att_weights_reshape_source')(
+    source_weight = layers.Reshape(target_shape=(source_weight.shape[-1], 1), name=f'att_weights_reshape_source_{index}')(
         source_weight)
-    target_weight = layers.Reshape(target_shape=(target_weight.shape[-1], 1), name='att_weights_reshape_target')(
+    target_weight = layers.Reshape(target_shape=(target_weight.shape[-1], 1), name=f'att_weights_reshape_target_{index}')(
         target_weight)
-    source_weighted = layers.Multiply(name='att_multiply_source')([source_weight, prev_source_layer])
-    target_weighted = layers.Multiply(name='att_multiply_target')([target_weight, prev_target_layer])
-    source_layers = layers.Lambda(create_sum_fn(1), name='att_cv_source')(source_weighted)
-    target_layers = layers.Lambda(create_sum_fn(1), name='att_cv_target')(target_weighted)
+    source_weighted = layers.Multiply(name=f'att_multiply_source_{index}')([source_weight, prev_source_layer])
+    target_weighted = layers.Multiply(name=f'att_multiply_target_{index}')([target_weight, prev_target_layer])
+    source_layers = layers.Lambda(create_sum_fn(1), name=f'att_cv_source_{index}')(source_weighted)
+    target_layers = layers.Lambda(create_sum_fn(1), name=f'att_cv_target_{index}')(target_weighted)
     
     return source_layers, target_layers
 

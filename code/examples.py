@@ -1,8 +1,11 @@
+from link_prediction.link_predictor import LinkPredictor, RandomLinkPredictor
+from segmenter.segmenter import ArgumentSegmenter, RandomArgumentSegmenter
 from corpus_parser.unified_parser import UnifiedParser
 from sentence_aligner.sentence_aligner import SentenceAligner
 from sentence_aligner.translator import GoogleDeepTranslator, SelfTranslator, FromCorpusTranslator
 from corpus_parser.conll_parser import ConllParser
 from pipelines.corpus_pipelines import full_corpus_processing_pipeline, make_alignemnts_pipeline, parse_corpus_pipeline
+from pipelines.segmenter_pipelines import perform_link_prediction_pipeline, perform_segmentation_pipeline, perform_full_inference_pipeline
 from projector.projector import PendingSourceAnnotationProjector, SelfLanguageProjector, CrossLingualAnnotationProjector
 from aligner.aligner import AwesomeAlignAligner, SelfLanguageAligner, FastAlignAligner
 
@@ -72,8 +75,38 @@ def corpus_processing_example():
         aligner, 
         projector)
 
+def link_processing_example():
+    
+    base_path = Path("data")
+    dataset_name = "testing"
+    # dataset_name = "persuasive_essays_sentence"
+    # dataset_name = "testing_sentence"
+    # dataset_name = "testing"
+
+    segmenter_dir = Path(base_path, "to_process", dataset_name)
+
+    exported_segmenter_dir = Path(base_path, "segmenter", dataset_name)
+    
+    link_prediction_dir = Path(base_path, "link_prediction_processed", dataset_name)
+    
+    
+    arg_tags = ["Claim", "MajorClaim", "Premise"]
+    segmenter = RandomArgumentSegmenter(arg_tags)
+    link_predictor = RandomLinkPredictor(
+        arg_tags,
+        ["", "support", "attack", "support_Inverse", "attack_Inverse"])
+    
+    perform_full_inference_pipeline(
+        segmenter,
+        link_predictor,
+        segmenter_dir,
+        exported_segmenter_dir,
+        link_prediction_dir)
+
 if __name__ == "__main__":
-    corpus_processing_example()
+    # corpus_processing_example()
+    link_processing_example()
+    
     # parse_corpus_pipeline(Path("code", "data", "corpus", "ArgumentAnnotatedEssays-2.0", "train-test-split", "dev"),
     #                       Path("code", "data", "parsed_to_conll", "ArgumentAnnotatedEssays-2.0", "dev"),
     #                       BretParser())

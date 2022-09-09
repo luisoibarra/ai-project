@@ -19,32 +19,40 @@ positional_args = [
         type=Path
     ),
     PositionalArg(
-        name="source_file_path",
-        help="Path to the file to perform argument segmentation",
+        name="segmenter_source_path",
+        help="Path to the directory containing the files to perform argument segmentation",
         type=Path
     ),
     PositionalArg(
-        name="dest_file_path",
+        name="segmenter_export_path",
         help="Path to the save the result of the argument segmentation process",
         type=Path
     ),
 ]
 
 choice_args = [
+    ChoiceArg(
+        name="segmenter",
+        help="Select the segmentation algorithm to use",
+        type=str,
+        values=("tensorflow",)
+    ),
 ]
 
 optional_args = [
 ]
 
 def create_from_args(args) -> ArgumentSegmenter:
-    segmenter = TensorflowArgumentSegmenter(args.model_path)
+    segmenter = {
+        'tensorflow': TensorflowArgumentSegmenter(args.model_path), 
+    }[args.segmenter]
     return segmenter
 
 def handle_from_args(args):
     argument_segmenter = create_from_args(args)
-    argument_segmenter.extract_arguments_from_file(
-        source_file=args.source_file_path,
-        dest_directory=args.dest_file_path,
+    argument_segmenter.extract_arguments_dir(
+        annotation_dir=args.segmenter_source_path,
+        export_dir=args.segmenter_export_path,
     )
 
 if __name__ == "__main__":

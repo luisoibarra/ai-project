@@ -145,9 +145,26 @@ class ConllParser(Parser):
                 
             return proposition_text, current
         
-        argumentative_units = pd.DataFrame(columns=["prop_id", "prop_type", "prop_init", "prop_end", "prop_text"])
-        non_argumentative_units = pd.DataFrame(columns=["prop_init", "prop_end", "prop_text"])
-        relations = pd.DataFrame(columns=["relation_id", "relation_type", "prop_id_source", "prop_id_target"])
+        argumentative_units = {
+            "prop_id": [], 
+            "prop_type": [], 
+            "prop_init": [], 
+            "prop_end": [], 
+            "prop_text": [],
+        }
+        
+        non_argumentative_units = {
+            "prop_init": [], 
+            "prop_end": [], 
+            "prop_text": [],
+        }
+        
+        relations = {
+            "relation_id": [], 
+            "relation_type": [], 
+            "prop_id_source": [], 
+            "prop_id_target": [],            
+        }
 
         current = 0
         accumulative_offset = 0
@@ -155,36 +172,30 @@ class ConllParser(Parser):
             
             proposition, current = extract_proposition(line_parse, current)
             prop_info = line_parse[current-1] # All annotations of the argument are equal 
-            prop_id = len(argumentative_units) + 1 # 0 is the root node
+            prop_id = len(argumentative_units['prop_id']) + 1 # 0 is the root node
             
             if prop_info["bio_tag"] in ["O", ""]:
-                non_argumentative_units = pd.concat([non_argumentative_units, pd.DataFrame({
-                    "prop_init": accumulative_offset,
-                    "prop_end": accumulative_offset + len(proposition), 
-                    "prop_text": proposition,
-                }, index=[0])], ignore_index=True)
+                non_argumentative_units['prop_init'].append(accumulative_offset)
+                non_argumentative_units['prop_end'].append(accumulative_offset + len(proposition))
+                non_argumentative_units['prop_text'].append(proposition)
             else:
-                argumentative_units = pd.concat([argumentative_units, pd.DataFrame({
-                    "prop_id": prop_id, 
-                    "prop_type": prop_info["prop_type"],
-                    "prop_init": accumulative_offset,
-                    "prop_end": accumulative_offset + len(proposition), 
-                    "prop_text": proposition,
-                }, index=[0])], ignore_index=True)
-                
+                argumentative_units['prop_id'].append(prop_id)
+                argumentative_units['prop_type'].append(prop_info["prop_type"])
+                argumentative_units['prop_init'].append(accumulative_offset)
+                argumentative_units['prop_end'].append(accumulative_offset + len(proposition))
+                argumentative_units['prop_text'].append(proposition)
+
                 if None not in [prop_info["relation_type"], prop_info["relation_distance"]]:
-                    relations = pd.concat([relations, pd.DataFrame({
-                        "relation_id": len(relations), 
-                        "relation_type": prop_info["relation_type"],
-                        "prop_id_source": prop_id, 
-                        "prop_id_target": prop_id + int(prop_info["relation_distance"]),
-                    }, index=[0])], ignore_index=True)
+                    relations['relation_id'].append(len(relations['relation_id']))
+                    relations['relation_type'].append(prop_info["relation_type"])
+                    relations['prop_id_source'].append(prop_id)
+                    relations['prop_id_target'].append(prop_id + int(prop_info["relation_distance"]))
             
             accumulative_offset += len(proposition)
             if prop_info["bio_tag"] != "":
                 accumulative_offset += 1 # Extra separator when rebuilding text
         
-        return argumentative_units, relations, non_argumentative_units
+        return pd.DataFrame(argumentative_units), pd.DataFrame(relations), pd.DataFrame(non_argumentative_units)
         
     def fix_annotations(self, annotations: List[ConllTagInfo]) -> List[ConllTagInfo]:
         """
@@ -228,7 +239,6 @@ class ConllParser(Parser):
                 
         for file_path_str, (argumentative_units, relations, non_argumentative_units) in dataframes.items():
 
-            result = ""
             tags_info = []
             all_units = pd.concat([argumentative_units, non_argumentative_units], sort=True)
             all_units.sort_values(by="prop_init", inplace=True)
@@ -296,14 +306,7 @@ class ConllParser(Parser):
             if get_tags:
                 results[file_path_str] = tags_info, text
             else:
-                # Create text
-                for tag_info in tags_info:
-                    if tag_info == self.__sent_separator:
-                        to_write = "\n"
-                    else:
-                        to_write = self.ANNOTATION_FORMAT.format_map(tag_info)
-                        to_write = to_write.replace("-none", "") # Remove unnecesary labels
-                    result += to_write
+                result = self.get_conll_text_from_annotation_dicts(tags_info)
                 results[file_path_str] = result, text
         
         return results
@@ -337,6 +340,26 @@ class ConllParser(Parser):
         
         annotations: List containig the dictionary that holds the information about the tag
         
-        returns: The annotated conll text representation
+        returns: The text representation
         """
         return " ".join([x["tok"] for x in annotations])
+    
+    def get_conll_text_from_annotation_dicts(self, annotations: List[ConllTagInfo]) -> str:
+        """
+        Returns the conll text associated with `annotations`.
+        
+        annotations: List containig the dictionary that holds the information about the tag
+        
+        returns: The annotated conll text representation
+        """
+        # Create text
+        result = ""
+        for tag_info in annotations:
+            if tag_info == self.__sent_separator:
+                to_write = "\n"
+            else:
+                to_write = self.ANNOTATION_FORMAT.format_map(tag_info)
+                to_write = to_write.replace("-none", "") # Remove unnecesary labels
+            result += to_write
+        return result
+    
